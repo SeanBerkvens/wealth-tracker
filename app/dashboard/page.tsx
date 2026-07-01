@@ -1,40 +1,151 @@
 import WealthCard from "@/components/dashboard/wealth-card";
+import { NetWorthChart } from "@/components/dashboard/net-worth-chart";
+import { AssetAllocation } from "@/components/dashboard/asset-allocation";
+import { RecentTransactions } from "@/components/dashboard/recent-transactions";
+import { supabase } from "@/lib/supabase";
 
-export default function DashboardPage() {
+export default async function DashboardPage() {
+  
+  const { data: accounts } = await supabase
+  .from("accounts")
+  .select("*");
+
+  const cashBalance =
+  accounts?.reduce(
+    (total, account) => total + Number(account.balance),
+    0
+  ) ?? 0;
+
+  const { data: assets } = await supabase
+  .from("assets")
+  .select("*");
+
+  const totalAssets =
+  assets?.reduce(
+    (total, asset) => total + Number(asset.value),
+    0
+  ) ?? 0;
+
+  const { data: liabilities } = await supabase
+  .from("liabilities")
+  .select("*");
+
+  const totalLiabilities =
+  liabilities?.reduce(
+    (total, liability) =>
+      total + Number(liability.value),
+    0
+  ) ?? 0;
+
+  const { data: investments } = await supabase
+  .from("investments")
+  .select("*");
+
+  const totalInvestments =
+  investments?.reduce(
+    (total, investment) =>
+      total + Number(investment.value),
+    0
+  ) ?? 0;
+
+  const netWorth =
+  cashBalance +
+  totalAssets +
+  totalInvestments -
+  totalLiabilities;
+
+  const { data: history } = await supabase
+  .from("net_worth_history")
+  .select("*")
+  .order("date");
+
+  
+
+console.log(accounts);
+  
   return (
-    <div>
-      <h1 className="text-3xl font-bold mb-8">
-        Dashboard
-      </h1>
+    <div className="space-y-10">
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* Dashboard Header */}
+      <div>
+        <div className="flex items-center gap-2">
+          <h1 className="text-4xl font-semibold tracking-tight">
+            Good <span className="text-[#D4AF37]">evening</span>
+          </h1>
 
-        <WealthCard
-          title="Net Worth"
-          value="$500,000"
-        />
+          <span className="text-2xl">
+            👋
+          </span>
+        </div>
 
-        <WealthCard
-          title="Assets"
-          value="$650,000"
-        />
+        <p className="mt-2 text-neutral-500 text-lg">
+          Here's your financial overview
+        </p>
 
-        <WealthCard
-          title="Liabilities"
-          value="$150,000"
-        />
+        <p className="mt-4 text-sm text-neutral-400">
+          Last updated: Today
+        </p>
+      </div>
 
-        <WealthCard
-          title="Cash"
-          value="$25,000"
-        />
 
-        <WealthCard
-          title="Investments"
-          value="$400,000"
-        />
+      {/* Summary Cards */}
+<div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+  {/* Hero Card */}
+  <div className="lg:col-span-2">
+    <WealthCard
+  title="Net Worth"
+  value={`$${netWorth.toLocaleString()}`}
+  change="+$12,500 this month"
+  icon="trend"
+  featured
+/>
+  </div>
+
+
+  <WealthCard
+  title="Assets"
+  value={`$${totalAssets.toLocaleString()}`}
+  icon="home"
+/>
+
+
+  <WealthCard
+  title="Liabilities"
+  value={`$${totalLiabilities.toLocaleString()}`}
+  icon="card"
+/>
+
+
+  <WealthCard
+  title="Cash"
+  value={`$${cashBalance.toLocaleString()}`}
+  icon="wallet"
+/>
+
+
+  <WealthCard
+  title="Investments"
+  value={`$${totalInvestments.toLocaleString()}`}
+  change="+2.5%"
+  icon="piggy"
+/>
+
+</div>
+
+
+      {/* Dashboard Sections */}
+      <div className="grid gap-6">
+
+        <NetWorthChart data={history ?? []} />
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <AssetAllocation />
+          <RecentTransactions />
+        </div>
 
       </div>
+
     </div>
   );
 }
