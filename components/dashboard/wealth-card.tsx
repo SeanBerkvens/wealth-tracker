@@ -40,12 +40,22 @@ export default function WealthCard({
   className={`
     rounded-2xl
     p-6
-    shadow-sm
     transition-all
+    border
+    border-border
     ${
       featured
-        ? "bg-gradient-to-b from-neutral-50 to-white border border-[#D4AF37]/30 shadow-md"
-        : "bg-gradient-to-b from-neutral-50 to-neutral-200"
+        ? `
+          bg-gradient-to-br
+          from-card
+          via-card
+          to-primary/20
+          shadow-lg
+        `
+        : `
+          bg-card
+          shadow-sm
+        `
     }
   `}
 >
@@ -53,20 +63,23 @@ export default function WealthCard({
       <div className="flex items-start justify-between">
 
         <div>
-          <p className="text-sm text-neutral-500">
+
+          <p className="text-sm text-muted-foreground">
             {title}
           </p>
 
           <h2
-  className={`
-    mt-3
-    font-semibold
-    tracking-tight
-    ${featured ? "text-5xl" : "text-3xl"}
-  `}
->
+            className={`
+              mt-3
+              font-semibold
+              tracking-tight
+              text-card-foreground
+              ${featured ? "text-5xl md:text-6xl" : "text-3xl"}
+            `}
+          >
             {value}
           </h2>
+
 
           {change && (
             <div className="mt-3 flex items-center gap-1 text-sm text-green-600">
@@ -81,21 +94,24 @@ export default function WealthCard({
         </div>
 
 
-        <div className="
-          flex
-          h-10
-          w-10
-          items-center
-          justify-center
-          rounded-xl
-          bg-white
-          shadow-sm
-        ">
+        <div
+          className="
+            flex
+            h-10
+            w-10
+            items-center
+            justify-center
+            rounded-xl
+            bg-muted
+            shadow-sm
+          "
+        >
           <Icon
             size={20}
-            className="text-[#D4AF37]"
+            className="text-primary"
           />
         </div>
+
 
       </div>
 

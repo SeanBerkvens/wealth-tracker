@@ -25,12 +25,21 @@ const data = [
 ];
 
 
+const COLORS = [
+  "var(--primary)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+];
+
+
 export function AssetAllocation() {
   return (
     <div
       className="
         rounded-2xl
-        bg-white
+        bg-card
+        border
+        border-border
         p-6
         shadow-sm
       "
@@ -39,11 +48,11 @@ export function AssetAllocation() {
       {/* Header */}
       <div className="mb-6">
 
-        <h2 className="text-xl font-semibold">
+        <h2 className="text-xl font-semibold text-card-foreground">
           Asset Allocation
         </h2>
 
-        <p className="mt-1 text-sm text-neutral-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           How your wealth is distributed
         </p>
 
@@ -67,13 +76,21 @@ export function AssetAllocation() {
             >
 
               {data.map((entry, index) => (
-                <Cell key={`cell-${index}`} />
+                <Cell
+                  key={`cell-${index}`}
+                  fill={COLORS[index]}
+                />
               ))}
 
             </Pie>
 
 
             <Tooltip
+              contentStyle={{
+                backgroundColor: "var(--card)",
+                borderColor: "var(--border)",
+                color: "var(--card-foreground)",
+              }}
               formatter={(value) =>
                 `${value}%`
               }
@@ -101,12 +118,12 @@ export function AssetAllocation() {
             "
           >
 
-            <span className="text-neutral-600">
+            <span className="text-muted-foreground">
               {item.name}
             </span>
 
 
-            <span className="font-medium">
+            <span className="font-medium text-card-foreground">
               {item.value}%
             </span>
 

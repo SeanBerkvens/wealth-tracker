@@ -2,16 +2,14 @@
 
 import {
   LineChart,
-  Line,
+  Area,
+  AreaChart,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-
-
-
 
 
 interface NetWorthChartProps {
@@ -29,7 +27,9 @@ export function NetWorthChart({
     <div
       className="
         rounded-2xl
-        bg-white
+        bg-card
+        border
+        border-border
         p-6
         shadow-sm
       "
@@ -38,11 +38,11 @@ export function NetWorthChart({
       {/* Header */}
       <div className="mb-6">
 
-        <h2 className="text-xl font-semibold">
+        <h2 className="text-xl font-semibold text-card-foreground">
           Net Worth Growth
         </h2>
 
-        <p className="mt-1 text-sm text-neutral-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           Your wealth progress over time
         </p>
 
@@ -54,46 +54,84 @@ export function NetWorthChart({
 
         <ResponsiveContainer width="100%" height="100%">
 
-          <LineChart
-  data={data.map((item) => ({
-    month: new Date(item.date)
-      .toLocaleString("default", {
-        month: "short",
-      }),
-    value: item.value,
-  }))}
->
+  <AreaChart
+    data={data.map((item) => ({
+      month: new Date(item.date)
+        .toLocaleString("default", {
+          month: "short",
+        }),
+      value: item.value,
+    }))}
+  >
 
-            <CartesianGrid
-              strokeDasharray="3 3"
-            />
+    <defs>
+      <linearGradient
+        id="wealthGradient"
+        x1="0"
+        y1="0"
+        x2="0"
+        y2="1"
+      >
+        <stop
+          offset="5%"
+          stopColor="var(--primary)"
+          stopOpacity={0.35}
+        />
 
-            <XAxis
-              dataKey="month"
-            />
+        <stop
+          offset="95%"
+          stopColor="var(--primary)"
+          stopOpacity={0}
+        />
+      </linearGradient>
+    </defs>
 
-            <YAxis
-              tickFormatter={(value) =>
-                `$${value / 1000}k`
-              }
-            />
 
-            <Tooltip
-              formatter={(value) =>
-                `$${Number(value).toLocaleString()}`
-              }
-            />
+    <CartesianGrid
+      strokeDasharray="3 3"
+      stroke="var(--border)"
+    />
 
-            <Line
-              type="monotone"
-              dataKey="value"
-              strokeWidth={3}
-              dot={false}
-            />
 
-          </LineChart>
+    <XAxis
+      dataKey="month"
+      stroke="var(--muted-foreground)"
+    />
 
-        </ResponsiveContainer>
+
+    <YAxis
+      stroke="var(--muted-foreground)"
+      tickFormatter={(value) =>
+        `$${value / 1000}k`
+      }
+    />
+
+
+    <Tooltip
+      contentStyle={{
+        backgroundColor: "var(--card)",
+        borderColor: "var(--border)",
+        color: "var(--card-foreground)",
+        borderRadius: "12px",
+      }}
+      formatter={(value) =>
+        `$${Number(value).toLocaleString()}`
+      }
+    />
+
+
+    <Area
+      type="monotone"
+      dataKey="value"
+      stroke="var(--primary)"
+      strokeWidth={3}
+      fill="url(#wealthGradient)"
+    />
+
+
+  </AreaChart>
+
+</ResponsiveContainer>
 
       </div>
 

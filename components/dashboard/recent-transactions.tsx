@@ -30,7 +30,9 @@ export function RecentTransactions() {
     <div
       className="
         rounded-2xl
-        bg-white
+        bg-card
+        border
+        border-border
         p-6
         shadow-sm
       "
@@ -39,11 +41,11 @@ export function RecentTransactions() {
       {/* Header */}
       <div className="mb-6">
 
-        <h2 className="text-xl font-semibold">
+        <h2 className="text-xl font-semibold text-card-foreground">
           Recent Activity
         </h2>
 
-        <p className="mt-1 text-sm text-neutral-500">
+        <p className="mt-1 text-sm text-muted-foreground">
           Latest changes to your finances
         </p>
 
@@ -62,18 +64,18 @@ export function RecentTransactions() {
               items-center
               justify-between
               rounded-xl
-              bg-neutral-50
+              bg-muted
               p-4
             "
           >
 
             <div>
 
-              <p className="font-medium">
+              <p className="font-medium text-card-foreground">
                 {transaction.name}
               </p>
 
-              <p className="text-sm text-neutral-500">
+              <p className="text-sm text-muted-foreground">
                 {transaction.category}
               </p>
 

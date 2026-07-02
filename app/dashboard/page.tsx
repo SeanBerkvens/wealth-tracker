@@ -3,6 +3,7 @@ import { NetWorthChart } from "@/components/dashboard/net-worth-chart";
 import { AssetAllocation } from "@/components/dashboard/asset-allocation";
 import { RecentTransactions } from "@/components/dashboard/recent-transactions";
 import { supabase } from "@/lib/supabase";
+import ThemeToggle from "@/components/theme-toggle";
 
 export default async function DashboardPage() {
   
@@ -59,33 +60,42 @@ export default async function DashboardPage() {
   .select("*")
   .order("date");
 
-  
-
-console.log(accounts);
-  
+ 
   return (
     <div className="space-y-10">
 
       {/* Dashboard Header */}
-      <div>
-        <div className="flex items-center gap-2">
-          <h1 className="text-4xl font-semibold tracking-tight">
-            Good <span className="text-[#D4AF37]">evening</span>
-          </h1>
+<div className="flex items-start justify-between">
 
-          <span className="text-2xl">
-            👋
-          </span>
-        </div>
+  <div>
+    <div className="flex items-center gap-2">
 
-        <p className="mt-2 text-neutral-500 text-lg">
-          Here's your financial overview
-        </p>
+      <h1 className="text-4xl font-semibold tracking-tight">
+        Good <span className="text-primary">evening</span>
+      </h1>
 
-        <p className="mt-4 text-sm text-neutral-400">
-          Last updated: Today
-        </p>
-      </div>
+      <span className="text-2xl">
+        👋
+      </span>
+
+    </div>
+
+
+    <p className="mt-2 text-muted-foreground text-lg">
+      Here's your financial overview
+    </p>
+
+
+    <p className="mt-4 text-sm text-muted-foreground">
+      Last updated: Today
+    </p>
+
+  </div>
+
+
+  <ThemeToggle />
+
+</div>
 
 
       {/* Summary Cards */}

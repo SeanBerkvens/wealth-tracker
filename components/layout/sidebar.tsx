@@ -46,32 +46,42 @@ export default function Sidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="
-      w-64
-      min-h-screen
-      bg-neutral-50
-      p-6
-      flex
-      flex-col
-    ">
+    <aside
+      className="
+        w-64
+        min-h-screen
+        bg-sidebar
+        text-sidebar-foreground
+        border-r
+        border-sidebar-border
+        p-6
+        flex
+        flex-col
+      "
+    >
 
 
       {/* Branding */}
       <div className="mb-10">
 
-        <h2 className="
-  text-xl
-  font-semibold
-  tracking-tight
-">
-  Wealth <span className="text-[#D4AF37] italic">Tracker</span>
-</h2>
+        <h2
+          className="
+            text-xl
+            font-semibold
+            tracking-tight
+          "
+        >
+          Wealth <span className="text-primary italic">Tracker</span>
+        </h2>
 
-        <p className="
-  text-sm
-  text-neutral-500
-  mt-1
-">
+
+        <p
+          className="
+            text-sm
+            text-muted-foreground
+            mt-1
+          "
+        >
           Build. Track. Grow.
         </p>
 
@@ -101,9 +111,10 @@ export default function Sidebar() {
                 py-2.5
                 transition
 
-                ${active
-                  ? "bg-neutral-200 text-neutral-900 shadow-sm"
-                  : "text-neutral-600 hover:bg-neutral-200 hover:text-neutral-900"
+                ${
+                  active
+                    ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent"
                 }
               `}
             >
@@ -113,12 +124,14 @@ export default function Sidebar() {
                   h-5
                   w-5
 
-                  ${active
-                    ? "text-[#D4AF37]"
-                    : "text-neutral-500"
+                  ${
+                    active
+                      ? "text-primary"
+                      : "text-muted-foreground"
                   }
                 `}
               />
+
 
               <span>
                 {item.name}
@@ -145,9 +158,10 @@ export default function Sidebar() {
           py-2.5
           transition
 
-          ${pathname === "/settings"
-            ? "bg-neutral-200 text-neutral-900 shadow-sm"
-            : "text-neutral-600 hover:bg-neutral-200 hover:text-neutral-900"
+          ${
+            pathname === "/settings"
+              ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
+              : "text-sidebar-foreground hover:bg-sidebar-accent"
           }
         `}
       >
@@ -157,12 +171,14 @@ export default function Sidebar() {
             h-5
             w-5
 
-            ${pathname === "/settings"
-              ? "text-[#D4AF37]"
-              : "text-neutral-500"
+            ${
+              pathname === "/settings"
+                ? "text-primary"
+                : "text-muted-foreground"
             }
           `}
         />
+
 
         Settings
 
