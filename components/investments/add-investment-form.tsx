@@ -144,7 +144,7 @@ export default function AddInvestmentForm() {
     +
   </span>
 
-  Add
+  ADD
 </button>
 
 
