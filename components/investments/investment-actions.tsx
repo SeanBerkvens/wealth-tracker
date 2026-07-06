@@ -11,6 +11,8 @@ interface InvestmentActionsProps {
   shares: number;
   purchasePrice: number;
   currentPrice: number;
+  purchaseDate?: string;
+  onSuccess?: () => void;
 }
 
 
@@ -21,6 +23,8 @@ export default function InvestmentActions({
   shares,
   purchasePrice,
   currentPrice,
+  purchaseDate,
+  onSuccess,
 }: InvestmentActionsProps) {
 
 
@@ -38,6 +42,10 @@ export default function InvestmentActions({
 
   const [newCurrentPrice, setNewCurrentPrice] =
     useState(currentPrice.toString());
+
+  const [newPurchaseDate, setNewPurchaseDate] = useState(
+    purchaseDate || new Date().toISOString().split("T")[0]
+  );
 
 
 
@@ -61,6 +69,7 @@ export default function InvestmentActions({
         purchase_price: Number(newPurchasePrice),
         current_price: Number(newCurrentPrice),
         value,
+        purchase_date: newPurchaseDate,
       })
       .eq("id", id);
 
@@ -75,7 +84,7 @@ export default function InvestmentActions({
 
     setEditing(false);
 
-    window.location.reload();
+    onSuccess?.();
 
   }
 
@@ -106,7 +115,7 @@ export default function InvestmentActions({
     }
 
 
-    window.location.reload();
+    onSuccess?.();
 
   }
 
@@ -265,7 +274,23 @@ export default function InvestmentActions({
               "
             />
 
-
+            {/* PURCHASE DATE */}
+            <label className="text-xs text-muted-foreground block">
+              Purchase Date
+            </label>
+            <input
+              type="date"
+              value={newPurchaseDate}
+              onChange={(e)=>setNewPurchaseDate(e.target.value)}
+              className="
+                w-full
+                rounded-lg
+                border
+                border-border
+                bg-background
+                p-3
+              "
+            />
 
             <div className="flex justify-end gap-3">
 

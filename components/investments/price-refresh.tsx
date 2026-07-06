@@ -4,115 +4,49 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCw } from "lucide-react";
 
-
-export default function PriceRefresh() {
-
-
+export default function PriceRefresh({
+  onRefresh,
+}: {
+  onRefresh?: () => void;
+}) {
   const router = useRouter();
 
-
-  const [refreshing, setRefreshing] =
-    useState(false);
-
-
-  const [lastUpdated, setLastUpdated] =
-    useState<Date | null>(null);
-
-
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   async function refreshPrices() {
-
-
     setRefreshing(true);
 
-
-
-    await fetch(
-      "/api/refresh-prices",
-      {
-        method: "POST",
-      }
-    );
-
-
+    await fetch("/api/refresh-prices", { method: "POST" });
 
     router.refresh();
 
+    setLastUpdated(new Date());
 
-
-    setLastUpdated(
-      new Date()
-    );
-
+    // Notify parent to re-fetch data
+    onRefresh?.();
 
     setRefreshing(false);
-
-
   }
 
-
-
   useEffect(() => {
-
-
     refreshPrices();
 
+    const interval = setInterval(refreshPrices, 60000);
 
-
-    const interval =
-      setInterval(
-        refreshPrices,
-        60000
-      );
-
-
-
-    return () =>
-      clearInterval(interval);
-
-
-
+    return () => clearInterval(interval);
   }, []);
 
-
-
-
   return (
-
-    <div
-      className="
-        flex
-        items-center
-        gap-2
-        text-sm
-        text-muted-foreground
-      "
-    >
-
-      <RefreshCw
-        size={15}
-        className={
-          refreshing
-            ? "animate-spin"
-            : ""
-        }
-      />
-
-
+    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+      <RefreshCw size={15} className={refreshing ? "animate-spin" : ""} />
       <span>
-
         {refreshing
           ? "Updating prices..."
           : lastUpdated
             ? `Last updated ${lastUpdated.toLocaleTimeString()}`
-            : "Updating prices..."
-        }
-
+            : "Updating prices..."}
       </span>
-
-
     </div>
-
   );
-
 }

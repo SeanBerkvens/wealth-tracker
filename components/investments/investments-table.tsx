@@ -10,6 +10,7 @@ type Investment = {
   shares: number | string;
   purchase_price: number | string;
   current_price: number | string;
+  purchase_date?: string;
 };
 
 type Filter = "all" | "gainers" | "losers";
@@ -25,10 +26,60 @@ type SortKey =
   | "gain"
   | "gainPct";
 
+type EnrichedInvestment = {
+  id: string;
+  symbol: string;
+  name: string;
+  shares: number;
+  avg: number;
+  current: number;
+  book: number;
+  market: number;
+  gain: number;
+  gainPct: number;
+  positive: boolean;
+  purchase_date?: string;
+};
+
+function SortHeader({
+  label,
+  keyName,
+  sortKey,
+  sortDir,
+  onToggle,
+}: {
+  label: string;
+  keyName: SortKey;
+  sortKey: SortKey;
+  sortDir: "asc" | "desc";
+  onToggle: (key: SortKey) => void;
+}) {
+  const active = sortKey === keyName;
+
+  return (
+    <th
+      onClick={() => onToggle(keyName)}
+      className="py-3 text-left cursor-pointer select-none whitespace-nowrap"
+    >
+      <span className="inline-flex items-center gap-1">
+        {label}
+
+        <span className="w-3 text-center">
+          {active ? (sortDir === "asc" ? "▲" : "▼") : ""}
+        </span>
+      </span>
+    </th>
+  );
+}
+
 export default function InvestmentsTable({
   investments = [],
+  searchQuery = "",
+  onRefresh,
 }: {
   investments?: Investment[];
+  searchQuery?: string;
+  onRefresh?: () => void;
 }) {
   const [filter, setFilter] = useState<Filter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("market");
@@ -59,18 +110,29 @@ export default function InvestmentsTable({
     });
   }, [investments]);
 
+  const searched = useMemo(() => {
+    if (!searchQuery.trim()) return enriched;
+
+    const query = searchQuery.toLowerCase();
+    return enriched.filter(
+      (inv) =>
+        inv.symbol.toLowerCase().includes(query) ||
+        inv.name.toLowerCase().includes(query)
+    );
+  }, [enriched, searchQuery]);
+
   const filtered = useMemo(() => {
-    return enriched.filter((inv) => {
+    return searched.filter((inv) => {
       if (filter === "gainers") return inv.gain >= 0;
       if (filter === "losers") return inv.gain < 0;
       return true;
     });
-  }, [enriched, filter]);
+  }, [searched, filter]);
 
   const sorted = useMemo(() => {
     const data = [...filtered];
 
-    const getValue = (inv: any) => {
+    const getValue = (inv: EnrichedInvestment): string | number => {
       switch (sortKey) {
         case "symbol":
           return inv.symbol;
@@ -101,8 +163,8 @@ export default function InvestmentsTable({
 
       if (typeof aVal === "string") {
         return sortDir === "asc"
-          ? aVal.localeCompare(bVal)
-          : bVal.localeCompare(aVal);
+          ? aVal.localeCompare(bVal as string)
+          : (bVal as string).localeCompare(aVal);
       }
 
       return sortDir === "asc"
@@ -120,32 +182,6 @@ export default function InvestmentsTable({
       setSortKey(key);
       setSortDir("desc");
     }
-  };
-
-  // ✅ LEFT-ALIGNED SORT HEADER (no shifting)
-  const SortHeader = ({
-    label,
-    keyName,
-  }: {
-    label: string;
-    keyName: SortKey;
-  }) => {
-    const active = sortKey === keyName;
-
-    return (
-      <th
-        onClick={() => toggleSort(keyName)}
-        className="py-3 text-left cursor-pointer select-none whitespace-nowrap"
-      >
-        <span className="inline-flex items-center gap-1">
-          {label}
-
-          <span className="w-3 text-center">
-            {active ? (sortDir === "asc" ? "▲" : "▼") : ""}
-          </span>
-        </span>
-      </th>
-    );
   };
 
   return (
@@ -186,15 +222,15 @@ export default function InvestmentsTable({
 
         <thead>
           <tr className="border-b border-border text-muted-foreground">
-            <SortHeader label="Ticker" keyName="symbol" />
-            <SortHeader label="Company" keyName="name" />
-            <SortHeader label="Shares" keyName="shares" />
-            <SortHeader label="Last" keyName="last" />
-            <SortHeader label="Avg" keyName="avg" />
-            <SortHeader label="Book" keyName="book" />
-            <SortHeader label="Market" keyName="market" />
-            <SortHeader label="Gain $" keyName="gain" />
-            <SortHeader label="Gain %" keyName="gainPct" />
+            <SortHeader label="Ticker" keyName="symbol" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+            <SortHeader label="Company" keyName="name" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+            <SortHeader label="Shares" keyName="shares" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+            <SortHeader label="Last" keyName="last" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+            <SortHeader label="Avg" keyName="avg" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+            <SortHeader label="Book" keyName="book" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+            <SortHeader label="Market" keyName="market" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+            <SortHeader label="Gain $" keyName="gain" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+            <SortHeader label="Gain %" keyName="gainPct" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
 
             <th className="py-3 text-left">Actions</th>
           </tr>
@@ -241,6 +277,8 @@ export default function InvestmentsTable({
                     shares={inv.shares}
                     purchasePrice={inv.avg}
                     currentPrice={inv.current}
+                    purchaseDate={inv.purchase_date}
+                    onSuccess={onRefresh}
                   />
                 </div>
               </td>
