@@ -255,17 +255,29 @@ export default function InvestmentsTable({
                 ${inv.market.toLocaleString()}
               </td>
 
-              <td className={`py-3 font-semibold ${
-                inv.positive ? "text-emerald-600" : "text-rose-600"
-              }`}>
-                {inv.positive ? "+" : ""}
-                ${Math.abs(inv.gain).toLocaleString()}
+              <td className="py-3">
+                <span
+                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-semibold ${
+                    inv.positive
+                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
+                      : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-400"
+                  }`}
+                >
+                  {inv.positive ? "+" : ""}
+                  ${Math.abs(inv.gain).toLocaleString()}
+                </span>
               </td>
 
-              <td className={`py-3 ${
-                inv.gainPct >= 0 ? "text-emerald-600" : "text-rose-600"
-              }`}>
-                {inv.gainPct.toFixed(2)}%
+              <td className="py-3">
+                <span
+                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-semibold ${
+                    inv.gainPct >= 0
+                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
+                      : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-400"
+                  }`}
+                >
+                  {inv.gainPct.toFixed(2)}%
+                </span>
               </td>
 
               <td className="py-3">

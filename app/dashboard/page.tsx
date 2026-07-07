@@ -60,6 +60,12 @@ export default async function DashboardPage() {
   .select("*")
   .order("date");
 
+  const allocationData = [
+    { name: "Investments", value: totalInvestments },
+    { name: "Real Estate", value: totalAssets },
+    { name: "Cash", value: cashBalance },
+  ];
+
  
   return (
     <div className="space-y-10">
@@ -81,9 +87,9 @@ export default async function DashboardPage() {
     </div>
 
 
-    <p className="mt-2 text-muted-foreground text-lg">
-      Here's your financial overview
-    </p>
+      <p className="mt-2 text-muted-foreground text-lg">
+        Here's your financial overview
+      </p>
 
 
     <p className="mt-4 text-sm text-muted-foreground">
@@ -150,7 +156,7 @@ export default async function DashboardPage() {
         <NetWorthChart data={history ?? []} />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <AssetAllocation />
+          <AssetAllocation data={allocationData} />
           <RecentTransactions />
         </div>
 

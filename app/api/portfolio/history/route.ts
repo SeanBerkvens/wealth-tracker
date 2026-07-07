@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { getHistoricalPrices } from "@/lib/yahoo";
+import { getHistoricalPrices, getTradingSessionBounds } from "@/lib/yahoo";
 
 export async function GET(req: Request) {
   try {
@@ -10,12 +10,17 @@ export async function GET(req: Request) {
     // Calculate date range based on interval
     const now = new Date();
     let startDate: Date;
+    let endDate: Date = now;
+    let isIntraday = false;
 
     switch (interval) {
-      case "1D":
-        startDate = new Date(now);
-        startDate.setDate(startDate.getDate() - 1);
+      case "1D": {
+        const bounds = getTradingSessionBounds(now);
+        startDate = bounds.start;
+        endDate = bounds.end;
+        isIntraday = true;
         break;
+      }
       case "1W":
         startDate = new Date(now);
         startDate.setDate(startDate.getDate() - 7);
@@ -58,14 +63,16 @@ export async function GET(req: Request) {
     }
 
     // Fetch historical prices for each symbol
-    const symbolHistoryMap: Record<string, { date: string; close: number }[]> = {};
+    const symbolHistoryMap: Record<string, { date: string; close: number }[]> =
+      {};
 
     for (const investment of investments) {
       try {
         const prices = await getHistoricalPrices(
           investment.symbol,
           startDate,
-          now
+          endDate,
+          { intraday: isIntraday }
         );
         symbolHistoryMap[investment.symbol] = prices;
       } catch (err) {
@@ -85,7 +92,8 @@ export async function GET(req: Request) {
 
       for (const pricePoint of prices) {
         const value = shares * pricePoint.close;
-        dateValueMap[pricePoint.date] = (dateValueMap[pricePoint.date] || 0) + value;
+        dateValueMap[pricePoint.date] =
+          (dateValueMap[pricePoint.date] || 0) + value;
       }
     }
 

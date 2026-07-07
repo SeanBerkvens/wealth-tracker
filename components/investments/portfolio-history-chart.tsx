@@ -77,7 +77,7 @@ export default function PortfolioHistoryChart() {
       </div>
 
       {/* Chart */}
-      <div className="h-[300px]">
+      <div className="h-[385px]">
         {loading ? (
           <div className="h-full flex items-center justify-center text-muted-foreground">
             Loading...
@@ -103,6 +103,12 @@ export default function PortfolioHistoryChart() {
                 stroke="var(--muted-foreground)"
                 tickFormatter={(val: string) => {
                   const d = new Date(val);
+                  if (interval === "1D") {
+                    return d.toLocaleTimeString("default", {
+                      hour: "numeric",
+                      minute: "2-digit",
+                    });
+                  }
                   return d.toLocaleDateString("default", {
                     month: "short",
                     day: "numeric",
@@ -123,13 +129,21 @@ export default function PortfolioHistoryChart() {
                   borderRadius: "12px",
                 }}
                 formatter={(value: any) => [`$${Number(value).toLocaleString()}`, "Value"]}
-                labelFormatter={(label: any) =>
-                  new Date(label).toLocaleDateString("default", {
+                labelFormatter={(label: any) => {
+                  const d = new Date(label);
+                  if (interval === "1D") {
+                    return d.toLocaleString("default", {
+                      weekday: "short",
+                      hour: "numeric",
+                      minute: "2-digit",
+                    });
+                  }
+                  return d.toLocaleDateString("default", {
                     month: "long",
                     day: "numeric",
                     year: "numeric",
-                  })
-                }
+                  });
+                }}
               />
 
               <Area
