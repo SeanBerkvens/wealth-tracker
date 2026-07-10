@@ -55,18 +55,15 @@ function SortHeader({
   const active = sortKey === keyName;
 
   return (
-    <th
+    <span
       onClick={() => onToggle(keyName)}
-      className="py-3 text-left cursor-pointer select-none whitespace-nowrap"
+      className="cursor-pointer select-none flex flex-col items-center justify-center"
     >
-      <span className="inline-flex items-center gap-1">
-        {label}
-
-        <span className="w-3 text-center">
-          {active ? (sortDir === "asc" ? "▲" : "▼") : ""}
-        </span>
+      <span className="uppercase">{label}</span>
+      <span className="text-xs mt-2">
+        {active ? (sortDir === "asc" ? "▲" : "▼") : ""}
       </span>
-    </th>
+    </span>
   );
 }
 
@@ -174,97 +171,99 @@ export default function InvestmentsTable({
   };
 
   return (
-    <div>
+    <div className="w-full">
       {/* TABLE */}
-      <table className="w-full text-sm">
+      <div className="overflow-x-auto">
+        <div className="mx-auto" style={{ minWidth: "900px" }}>
+          <table className="text-sm w-full table-fixed">
+            <thead>
+              <tr className="border-b border-border text-muted-foreground">
+                <th className="py-3 text-center uppercase w-[10%]"><SortHeader label="TICKER" keyName="symbol" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center uppercase w-[14%]"><SortHeader label="COMPANY" keyName="name" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center uppercase w-[8%]"><SortHeader label="SHARES" keyName="shares" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center uppercase w-[10%]"><SortHeader label="LAST" keyName="last" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center uppercase w-[10%]"><SortHeader label="AVG" keyName="avg" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center uppercase w-[10%]"><SortHeader label="BOOK" keyName="book" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center uppercase w-[10%]"><SortHeader label="MARKET" keyName="market" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center uppercase w-[10%]"><SortHeader label="GAIN $" keyName="gain" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center uppercase w-[10%]"><SortHeader label="GAIN %" keyName="gainPct" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
 
-        <thead>
-          <tr className="border-b border-border text-muted-foreground">
-            <SortHeader label="Ticker" keyName="symbol" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
-            <SortHeader label="Company" keyName="name" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
-            <SortHeader label="Shares" keyName="shares" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
-            <SortHeader label="Last" keyName="last" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
-            <SortHeader label="Avg" keyName="avg" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
-            <SortHeader label="Book" keyName="book" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
-            <SortHeader label="Market" keyName="market" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
-            <SortHeader label="Gain $" keyName="gain" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
-            <SortHeader label="Gain %" keyName="gainPct" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} />
+                <th className="py-3 text-center uppercase w-[8%]">ACTIONS</th>
+              </tr>
+            </thead>
 
-            <th className="py-3 text-left">Actions</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {sorted.map((inv) => (
-            <tr
-              key={inv.id}
-              className="border-b border-border last:border-none hover:bg-muted/40 transition-colors"
-            >
-
-              <td className="py-3 font-semibold">{inv.symbol}</td>
-              <td className="py-3 text-muted-foreground">{inv.name}</td>
-
-              <td className="py-3">{inv.shares}</td>
-              <td className="py-3">${inv.current.toLocaleString()}</td>
-              <td className="py-3">${inv.avg.toLocaleString()}</td>
-              <td className="py-3">${inv.book.toLocaleString()}</td>
-
-              <td className="py-3 font-semibold">
-                ${inv.market.toLocaleString()}
-              </td>
-
-              <td className="py-3">
-                <span
-                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-semibold ${
-                    inv.positive
-                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
-                      : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-400"
-                  }`}
+            <tbody>
+              {sorted.map((inv) => (
+                <tr
+                  key={inv.id}
+                  className="border-b border-border last:border-none hover:bg-muted/40 transition-colors"
                 >
-                  {inv.positive ? "+" : ""}
-                  ${Math.abs(inv.gain).toLocaleString()}
-                </span>
-              </td>
 
-              <td className="py-3">
-                <span
-                  className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-semibold ${
-                    inv.gainPct >= 0
-                      ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
-                      : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-400"
-                  }`}
-                >
-                  {inv.gainPct.toFixed(2)}%
-                </span>
-              </td>
+                  <td className="py-3 text-center font-semibold w-[10%]">{inv.symbol}</td>
+                  <td className="py-3 text-center text-muted-foreground w-[14%]">{inv.name}</td>
 
-              <td className="py-3">
-                <div className="flex justify-start">
-                  <InvestmentActions
-                    id={inv.id}
-                    name={inv.name}
-                    symbol={inv.symbol}
-                    shares={inv.shares}
-                    purchasePrice={inv.avg}
-                    currentPrice={inv.current}
-                    purchaseDate={inv.purchase_date}
-                    onSuccess={onRefresh}
-                  />
-                </div>
-              </td>
+                  <td className="py-3 text-center w-[8%]">{inv.shares}</td>
+                  <td className="py-3 text-center w-[10%]">${inv.current.toLocaleString()}</td>
+                  <td className="py-3 text-center w-[10%]">${inv.avg.toLocaleString()}</td>
+                  <td className="py-3 text-center w-[10%]">${inv.book.toLocaleString()}</td>
 
-            </tr>
-          ))}
-        </tbody>
+                  <td className="py-3 text-center font-semibold w-[10%]">
+                    ${inv.market.toLocaleString()}
+                  </td>
 
-      </table>
+                  <td className="py-3 text-center w-[10%]">
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-semibold ${
+                        inv.positive
+                          ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
+                          : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-400"
+                      }`}
+                    >
+                      {inv.positive ? "+" : ""}
+                      ${Math.abs(inv.gain).toLocaleString()}
+                    </span>
+                  </td>
 
-      {!sorted.length && (
-        <p className="text-muted-foreground mt-4">
-          No investments match this filter.
-        </p>
-      )}
+                  <td className="py-3 text-center w-[10%]">
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-semibold ${
+                        inv.gainPct >= 0
+                          ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
+                          : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-400"
+                      }`}
+                    >
+                      {inv.gainPct.toFixed(2)}%
+                    </span>
+                  </td>
 
+                  <td className="py-3 text-center w-[8%]">
+                    <div className="flex justify-center">
+                      <InvestmentActions
+                        id={inv.id}
+                        name={inv.name}
+                        symbol={inv.symbol}
+                        shares={inv.shares}
+                        purchasePrice={inv.avg}
+                        currentPrice={inv.current}
+                        purchaseDate={inv.purchase_date}
+                        onSuccess={onRefresh}
+                      />
+                    </div>
+                  </td>
+
+                </tr>
+              ))}
+            </tbody>
+
+          </table>
+
+          {!sorted.length && (
+            <p className="text-muted-foreground mt-4">
+              No investments match this filter.
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,24 +1,15 @@
-interface PortfolioValueCardProps {
+interface NetDepositsCardProps {
   value: number;
-  todayGainValue: number;
-  todayGainPercent: number;
-  holdings: number;
-  bookValue: number;
+  percent?: number;
 }
 
-export default function PortfolioValueCard({
-  value,
-  todayGainValue,
-  todayGainPercent,
-  holdings,
-  bookValue,
-}: PortfolioValueCardProps) {
-  const positive = bookValue >= 0;
+export default function NetDepositsCard({ value, percent }: NetDepositsCardProps) {
+  const positive = value >= 0;
 
   return (
     <div className="rounded-2xl border border-border bg-card p-6 shadow-sm card-hover flex flex-col items-center justify-center h-full">
       <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
-        Portfolio Value
+        Net Deposits
       </p>
       <p className="text-5xl font-bold tracking-tight mt-2">
         ${value.toLocaleString(undefined, {

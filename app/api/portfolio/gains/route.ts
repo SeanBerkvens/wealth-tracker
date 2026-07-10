@@ -69,6 +69,7 @@ export async function GET(req: Request) {
       unrealizedGainValue: Math.round(unrealizedGainValue * 100) / 100,
       unrealizedGainPercent: Math.round(unrealizedGainPercent * 100) / 100,
       bookValue: Math.round(bookValue * 100) / 100,
+      netDeposits: Math.round(bookValue * 100) / 100,
     });
   } catch (err) {
     console.error("Portfolio gains error:", err);
@@ -78,6 +79,7 @@ export async function GET(req: Request) {
       unrealizedGainValue: 0,
       unrealizedGainPercent: 0,
       bookValue: 0,
+      netDeposits: 0,
     });
   }
 }
