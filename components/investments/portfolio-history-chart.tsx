@@ -24,7 +24,7 @@ const INTERVALS = [
 
 export default function PortfolioHistoryChart() {
   const [interval, setInterval] = useState("1M");
-  const [data, setData] = useState<{ date: string; value: number }[]>([]);
+  const [data, setData] = useState<{ date: string; value: number; bookValue: number }[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -94,6 +94,10 @@ export default function PortfolioHistoryChart() {
                   <stop offset="5%" stopColor="var(--primary)" stopOpacity={0.35} />
                   <stop offset="95%" stopColor="var(--primary)" stopOpacity={0} />
                 </linearGradient>
+                <linearGradient id="bookValueGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="var(--chart-2)" stopOpacity={0.25} />
+                  <stop offset="95%" stopColor="var(--chart-2)" stopOpacity={0} />
+                </linearGradient>
               </defs>
 
               <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
@@ -128,7 +132,10 @@ export default function PortfolioHistoryChart() {
                   color: "var(--card-foreground)",
                   borderRadius: "12px",
                 }}
-                formatter={(value: any) => [`$${Number(value).toLocaleString()}`, "Value"]}
+                formatter={(value: any, name: any) => {
+                  const label = name === "bookValue" ? "Net Deposits" : "Value";
+                  return [`$${Number(value).toLocaleString()}`, label];
+                }}
                 labelFormatter={(label: any) => {
                   const d = new Date(label);
                   if (interval === "1D") {
@@ -152,6 +159,14 @@ export default function PortfolioHistoryChart() {
                 stroke="var(--primary)"
                 strokeWidth={3}
                 fill="url(#portfolioGradient)"
+              />
+              <Area
+                type="monotone"
+                dataKey="bookValue"
+                stroke="var(--chart-2)"
+                strokeWidth={2}
+                strokeDasharray="6 3"
+                fill="url(#bookValueGradient)"
               />
             </AreaChart>
           </ResponsiveContainer>
