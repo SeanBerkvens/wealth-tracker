@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   AreaChart,
   Area,
@@ -20,18 +20,51 @@ const INTERVALS = [
   { label: "1Y", value: "1Y" },
   { label: "5Y", value: "5Y" },
   { label: "YTD", value: "YTD" },
+  { label: "ALL", value: "ALL" },
 ];
 
-export default function PortfolioHistoryChart() {
+export default function PortfolioHistoryChart({
+  portfolio,
+}: {
+  portfolio?: string;
+}) {
   const [interval, setInterval] = useState("1M");
   const [data, setData] = useState<{ date: string; value: number; bookValue: number }[]>([]);
   const [loading, setLoading] = useState(false);
+
+  // Format interval for display
+  const getIntervalLabel = (interval: string): string => {
+    const map: Record<string, string> = {
+      '1D': '1 day',
+      '1W': '1 week',
+      '1M': '1 month',
+      '3M': '3 months',
+      '6M': '6 months',
+      '1Y': '1 year',
+      '5Y': '5 years',
+      'YTD': 'year to date',
+      'ALL': 'all time'
+    };
+    return map[interval] || interval.toLowerCase();
+  };
+  
+  // Calculate change over the period
+  const periodChange = useMemo(() => {
+    if (data.length < 2) return null;
+    const firstValue = data[0].value;
+    const lastValue = data[data.length - 1].value;
+    const change = lastValue - firstValue;
+    const changePercent = firstValue > 0 ? (change / firstValue) * 100 : 0;
+    return { change, changePercent };
+  }, [data]);
 
   useEffect(() => {
     async function fetchHistory() {
       setLoading(true);
       try {
-        const res = await fetch(`/api/portfolio/history?interval=${interval}`);
+        const params = new URLSearchParams({ interval });
+        if (portfolio) params.set("portfolio", portfolio);
+        const res = await fetch(`/api/portfolio/history?${params.toString()}`);
         const result = await res.json();
         setData(Array.isArray(result) ? result : []);
       } catch (err) {
@@ -43,10 +76,10 @@ export default function PortfolioHistoryChart() {
     }
 
     fetchHistory();
-  }, [interval]);
+  }, [interval, portfolio]);
 
   return (
-    <div className="rounded-2xl bg-card border border-border p-6 shadow-sm">
+    <div className="rounded-2xl bg-card border border-border p-6 shadow-sm card-hover">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -56,6 +89,17 @@ export default function PortfolioHistoryChart() {
           <p className="mt-1 text-sm text-muted-foreground">
             Your portfolio value over time
           </p>
+          {periodChange && (
+            <div className={`mt-2 text-sm font-medium flex items-center gap-1 ${
+              periodChange.change >= 0 ? 'text-green-600' : 'text-red-600'
+            }`}>
+              <span>
+                {periodChange.change >= 0 ? '+' : '-'}
+                ${Math.abs(periodChange.change).toLocaleString()}{' '}
+                past {getIntervalLabel(interval)} →
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Interval Selector */}
@@ -64,7 +108,7 @@ export default function PortfolioHistoryChart() {
             <button
               key={item.value}
               onClick={() => setInterval(item.value)}
-              className={`px-3 py-1.5 text-sm rounded-md transition ${
+              className={`px-3 py-1.5 text-sm rounded-md transition btn-press ${
                 interval === item.value
                   ? "bg-primary text-primary-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -77,7 +121,7 @@ export default function PortfolioHistoryChart() {
       </div>
 
       {/* Chart */}
-      <div className="h-[385px]">
+      <div className="h-[501px]">
         {loading ? (
           <div className="h-full flex items-center justify-center text-muted-foreground">
             Loading...
@@ -100,30 +144,9 @@ export default function PortfolioHistoryChart() {
                 </linearGradient>
               </defs>
 
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
+              <XAxis hide />
 
-              <XAxis
-                dataKey="date"
-                stroke="var(--muted-foreground)"
-                tickFormatter={(val: string) => {
-                  const d = new Date(val);
-                  if (interval === "1D") {
-                    return d.toLocaleTimeString("default", {
-                      hour: "numeric",
-                      minute: "2-digit",
-                    });
-                  }
-                  return d.toLocaleDateString("default", {
-                    month: "short",
-                    day: "numeric",
-                  });
-                }}
-              />
-
-              <YAxis
-                stroke="var(--muted-foreground)"
-                tickFormatter={(value: number) => `$${(value / 1000).toFixed(0)}k`}
-              />
+              <YAxis hide />
 
               <Tooltip
                 contentStyle={{
@@ -132,12 +155,20 @@ export default function PortfolioHistoryChart() {
                   color: "var(--card-foreground)",
                   borderRadius: "12px",
                 }}
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 formatter={(value: any, name: any) => {
                   const label = name === "bookValue" ? "Net Deposits" : "Value";
                   return [`$${Number(value).toLocaleString()}`, label];
                 }}
-                labelFormatter={(label: any) => {
-                  const d = new Date(label);
+                labelFormatter={(label, payload) => {
+                  // Extract date from payload when available
+                  const dateStr = payload && payload.length > 0 && payload[0].payload ? 
+                                  String(payload[0].payload.date) : 
+                                  String(label);
+                  const d = new Date(dateStr);
+                  if (isNaN(d.getTime()) || !dateStr || dateStr === 'undefined') {
+                    return '';
+                  }
                   if (interval === "1D") {
                     return d.toLocaleString("default", {
                       weekday: "short",

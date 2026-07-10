@@ -10,8 +10,10 @@ type Stock = {
 
 export default function AddInvestmentForm({
   onSuccess,
+  portfolios = [],
 }: {
   onSuccess?: () => void;
+  portfolios?: string[];
 }) {
   const [open, setOpen] = useState(false);
 
@@ -25,6 +27,7 @@ export default function AddInvestmentForm({
   const [transactionDate, setTransactionDate] = useState(
     new Date().toISOString().split("T")[0]
   );
+  const [portfolio, setPortfolio] = useState("");
 
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
 
@@ -90,6 +93,7 @@ export default function AddInvestmentForm({
       price: priceNum,
       type: transactionType,
       date: transactionDate,
+      portfolio: portfolio || null,
     });
 
     if (txError) {
@@ -134,6 +138,7 @@ export default function AddInvestmentForm({
             purchase_price: newAvgPrice,
             current_price: currentPrice,
             value: newShares * (currentPrice || newAvgPrice),
+            portfolio: portfolio || existing.portfolio || null,
           })
           .eq("id", existing.id);
 
@@ -152,6 +157,7 @@ export default function AddInvestmentForm({
           current_price: currentPrice,
           value: currentPrice ? sharesNum * currentPrice : sharesNum * priceNum,
           purchase_date: transactionDate,
+          portfolio: portfolio || null,
         });
 
         if (insertError) {
@@ -214,6 +220,7 @@ export default function AddInvestmentForm({
     setPrice("");
     setTransactionDate(new Date().toISOString().split("T")[0]);
     setTransactionType("buy");
+    setPortfolio("");
 
     onSuccess?.();
   };
@@ -224,16 +231,16 @@ export default function AddInvestmentForm({
       {/* Button */}
       <button
         onClick={() => setOpen(true)}
-        className="px-4 py-2 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition"
+        className="px-4 py-2 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition btn-press"
       >
         + Transaction
       </button>
 
       {/* Modal */}
       {open && (
-        <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50">
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 modal-overlay">
 
-          <div className="w-full max-w-md p-6 rounded-xl bg-card text-card-foreground border border-border relative">
+          <div className="w-full max-w-md p-6 rounded-xl bg-card text-card-foreground border border-border relative modal-content">
 
             <button
               onClick={() => setOpen(false)}
@@ -253,7 +260,7 @@ export default function AddInvestmentForm({
                 <button
                   type="button"
                   onClick={() => setTransactionType("buy")}
-                  className={`flex-1 py-1.5 text-sm rounded-md font-medium transition ${
+                  className={`flex-1 py-1.5 text-sm rounded-md font-medium transition btn-press ${
                     transactionType === "buy"
                       ? "bg-emerald-600 text-white shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
@@ -264,7 +271,7 @@ export default function AddInvestmentForm({
                 <button
                   type="button"
                   onClick={() => setTransactionType("sell")}
-                  className={`flex-1 py-1.5 text-sm rounded-md font-medium transition ${
+                  className={`flex-1 py-1.5 text-sm rounded-md font-medium transition btn-press ${
                     transactionType === "sell"
                       ? "bg-rose-600 text-white shadow-sm"
                       : "text-muted-foreground hover:text-foreground"
@@ -338,6 +345,23 @@ export default function AddInvestmentForm({
                 className="w-full p-2 border rounded bg-background text-foreground"
               />
 
+              {/* PORTFOLIO */}
+              <label className="text-xs text-muted-foreground block">
+                Portfolio
+              </label>
+              <select
+                value={portfolio}
+                onChange={(e) => setPortfolio(e.target.value)}
+                className="w-full p-2 border rounded bg-background text-foreground"
+              >
+                <option value="">No portfolio</option>
+                {portfolios.map((p) => (
+                  <option key={p} value={p}>
+                    {p}
+                  </option>
+                ))}
+              </select>
+
               {/* STATUS MESSAGE */}
               {statusMessage && (
                 <p className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded p-2">
@@ -348,7 +372,7 @@ export default function AddInvestmentForm({
               {/* SUBMIT */}
               <button
                 type="submit"
-                className="w-full py-2 rounded bg-primary text-primary-foreground hover:opacity-90 transition"
+                className="w-full py-2 rounded bg-primary text-primary-foreground hover:opacity-90 transition btn-press"
               >
                 {transactionType === "buy" ? "Buy" : "Sell"}
               </button>

@@ -53,13 +53,54 @@ export async function GET(req: Request) {
         startDate.setMonth(startDate.getMonth() - 1);
     }
 
-    // Fetch all investments
-    const { data: investments } = await supabase
-      .from("investments")
-      .select("*");
+    const portfolio = searchParams.get("portfolio");
+
+    // Fetch all investments (optionally filtered by portfolio)
+    let investmentsQuery = supabase.from("investments").select("*");
+    if (portfolio) {
+      investmentsQuery = investmentsQuery.eq("portfolio", portfolio);
+    }
+    const { data: investments } = await investmentsQuery;
 
     if (!investments || investments.length === 0) {
       return NextResponse.json([]);
+    }
+
+    // For "ALL" interval, find earliest purchase date or transaction date
+    if (interval === "ALL") {
+      const { data: firstTx } = await supabase
+        .from("transactions")
+        .select("date")
+        .order("date", { ascending: true })
+        .limit(1);
+
+      if (firstTx && firstTx.length > 0) {
+        startDate = new Date(firstTx[0].date);
+      } else {
+        // Fall back to earliest purchase_date from investments
+        const earliest = investments.reduce((earliest, inv) => {
+          if (inv.purchase_date && inv.purchase_date < earliest) {
+            return inv.purchase_date;
+          }
+          return earliest;
+        }, "9999-12-31");
+        startDate = new Date(earliest);
+      }
+    }
+
+    // Clamp startDate to not go before the earliest transaction date
+    // to avoid showing empty pre-holding periods
+    const { data: earliestTx } = await supabase
+      .from("transactions")
+      .select("date")
+      .order("date", { ascending: true })
+      .limit(1);
+
+    if (earliestTx && earliestTx.length > 0) {
+      const earliestDate = new Date(earliestTx[0].date);
+      if (startDate < earliestDate) {
+        startDate = earliestDate;
+      }
     }
 
     // Fetch historical prices for each symbol
@@ -81,36 +122,91 @@ export async function GET(req: Request) {
       }
     }
 
-    // Build a map of date -> total portfolio value
-    const dateValueMap: Record<string, number> = {};
+    // Forward-fill missing price data for each stock and calculate portfolio value
+    // Collect all unique dates sorted
+    const allDatesSet = new Set<string>();
+    for (const investment of investments) {
+      const prices = symbolHistoryMap[investment.symbol];
+      if (!prices || prices.length === 0) continue;
+      for (const pricePoint of prices) {
+        allDatesSet.add(pricePoint.date);
+      }
+    }
+    const allDates = Array.from(allDatesSet).sort();
+
+    // For each stock, create a complete price series by forward-filling missing days
+    const filledPriceMap: Record<string, Map<string, number>> = {};
 
     for (const investment of investments) {
       const prices = symbolHistoryMap[investment.symbol];
       if (!prices || prices.length === 0) continue;
 
-      const shares = Number(investment.shares);
-
-      for (const pricePoint of prices) {
-        const value = shares * pricePoint.close;
-        dateValueMap[pricePoint.date] =
-          (dateValueMap[pricePoint.date] || 0) + value;
+      // Build a map of date -> close price for this symbol
+      const priceMap = new Map<string, number>();
+      for (const p of prices) {
+        if (p.close != null) {
+          priceMap.set(p.date, p.close);
+        }
       }
+
+      // Create a new map with forward-filled prices for all dates
+      const filledMap = new Map<string, number>();
+      let lastKnownPrice: number | undefined;
+
+      for (const date of allDates) {
+        if (priceMap.has(date)) {
+          lastKnownPrice = priceMap.get(date);
+        }
+        if (lastKnownPrice !== undefined) {
+          filledMap.set(date, lastKnownPrice);
+        }
+      }
+
+      filledPriceMap[investment.symbol] = filledMap;
     }
 
-    // Fetch all transactions to build cumulative book value
-    const { data: transactions } = await supabase
-      .from("transactions")
-      .select("*")
-      .order("date", { ascending: true });
+    // Build a map of date -> total portfolio value using forward-filled prices
+    const dateValueMap: Record<string, number> = {};
+
+    for (const date of allDates) {
+      let totalValue = 0;
+      
+      for (const investment of investments) {
+        const filledMap = filledPriceMap[investment.symbol];
+        if (!filledMap) continue;
+
+        const shares = Number(investment.shares);
+        const price = filledMap.get(date);
+        
+        if (price !== undefined) {
+          totalValue += shares * price;
+        }
+      }
+      
+      dateValueMap[date] = totalValue;
+    }
+
+    // Get the set of currently held symbols
+    const heldSymbols = new Set(investments.map((inv) => inv.symbol));
+
+    // Fetch all transactions to build cumulative book value (optionally filtered by portfolio)
+    let txQuery = supabase.from("transactions").select("*").order("date", { ascending: true });
+    if (portfolio) {
+      txQuery = txQuery.eq("portfolio", portfolio);
+    }
+    const { data: transactions } = await txQuery;
 
     // Build cumulative book value map by date
     const dateBookValueMap: Record<string, number> = {};
     let runningBookValue = 0;
 
     if (transactions && transactions.length > 0) {
-      // Group transactions by date
+      // Group transactions by date, only for symbols that are still held
       const txByDate: Record<string, { shares: number; price: number; type: string }[]> = {};
       for (const tx of transactions) {
+        // Skip transactions for symbols that are no longer held
+        if (!heldSymbols.has(tx.symbol)) continue;
+
         const txDate = tx.date; // YYYY-MM-DD format
         if (!txByDate[txDate]) txByDate[txDate] = [];
         txByDate[txDate].push({

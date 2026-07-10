@@ -46,6 +46,7 @@ export function AssetAllocation({ data = [] }: AssetAllocationProps) {
         border-border
         p-6
         shadow-sm
+        card-hover
       "
     >
       {/* Header */}

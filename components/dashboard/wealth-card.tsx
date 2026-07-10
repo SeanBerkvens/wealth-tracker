@@ -37,34 +37,41 @@ export default function WealthCard({
 
   return (
     <div
-  className={`
-    rounded-2xl
-    p-6
-    transition-all
-    border
-    border-border
-    ${
-      featured
-        ? `
-          bg-gradient-to-br
-          from-card
-          via-card
-          to-primary/20
-          shadow-lg
-        `
-        : `
-          bg-card
-          shadow-sm
-        `
-    }
-  `}
->
+      className={`
+        rounded-2xl
+        p-6
+        transition-all
+        duration-300
+        ease-out
+        border
+        border-border
+        card-hover
+        ${
+          featured
+            ? `
+              bg-gradient-to-br
+              from-card
+              via-card
+              to-primary/20
+              shadow-lg
+              hover:shadow-xl
+              hover:border-primary/20
+            `
+            : `
+              bg-card
+              shadow-sm
+              hover:shadow-md
+              hover:border-primary/10
+            `
+        }
+      `}
+    >
 
       <div className="flex items-start justify-between">
 
         <div>
 
-          <p className="text-sm text-muted-foreground">
+          <p className="text-sm text-muted-foreground font-medium">
             {title}
           </p>
 
@@ -104,6 +111,9 @@ export default function WealthCard({
             rounded-xl
             bg-muted
             shadow-sm
+            transition-all
+            duration-200
+            group-hover:scale-110
           "
         >
           <Icon

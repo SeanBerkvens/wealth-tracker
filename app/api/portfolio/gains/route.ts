@@ -2,11 +2,16 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { getStockQuote } from "@/lib/yahoo";
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
-    const { data: investments } = await supabase
-      .from("investments")
-      .select("*");
+    const { searchParams } = new URL(req.url);
+    const portfolio = searchParams.get("portfolio");
+
+    let query = supabase.from("investments").select("*");
+    if (portfolio) {
+      query = query.eq("portfolio", portfolio);
+    }
+    const { data: investments } = await query;
 
     if (!investments || investments.length === 0) {
       return NextResponse.json({
@@ -14,6 +19,7 @@ export async function GET() {
         todayGainPercent: 0,
         unrealizedGainValue: 0,
         unrealizedGainPercent: 0,
+        bookValue: 0,
       });
     }
 
@@ -62,6 +68,7 @@ export async function GET() {
       todayGainPercent: Math.round(todayGainPercent * 100) / 100,
       unrealizedGainValue: Math.round(unrealizedGainValue * 100) / 100,
       unrealizedGainPercent: Math.round(unrealizedGainPercent * 100) / 100,
+      bookValue: Math.round(bookValue * 100) / 100,
     });
   } catch (err) {
     console.error("Portfolio gains error:", err);
@@ -70,6 +77,7 @@ export async function GET() {
       todayGainPercent: 0,
       unrealizedGainValue: 0,
       unrealizedGainPercent: 0,
+      bookValue: 0,
     });
   }
 }

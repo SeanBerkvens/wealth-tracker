@@ -90,7 +90,7 @@ export default function Sidebar() {
 
 
       {/* Navigation */}
-      <nav className="space-y-2 flex-1">
+      <nav className="space-y-1.5 flex-1">
 
         {navigation.map((item) => {
 
@@ -102,38 +102,23 @@ export default function Sidebar() {
             <Link
               key={item.name}
               href={item.href}
-              className={`
-                flex
-                items-center
-                gap-3
-                rounded-xl
-                px-3
-                py-2.5
-                transition
-
-                ${
-                  active
-                    ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-                    : "text-sidebar-foreground hover:bg-sidebar-accent"
-                }
-              `}
+              className={`sidebar-link btn-press flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200 ${
+                active
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm active"
+                  : "text-sidebar-foreground hover:bg-sidebar-accent hover:translate-x-0.5"
+              }`}
             >
 
               <Icon
-                className={`
-                  h-5
-                  w-5
-
-                  ${
-                    active
-                      ? "text-primary"
-                      : "text-muted-foreground"
-                  }
-                `}
+                className={`h-5 w-5 transition-all duration-200 ${
+                  active
+                    ? "text-primary"
+                    : "text-muted-foreground"
+                }`}
               />
 
 
-              <span>
+              <span className="text-sm font-medium">
                 {item.name}
               </span>
 
@@ -149,38 +134,23 @@ export default function Sidebar() {
       {/* Settings */}
       <Link
         href="/settings"
-        className={`
-          flex
-          items-center
-          gap-3
-          rounded-xl
-          px-3
-          py-2.5
-          transition
-
-          ${
-            pathname === "/settings"
-              ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm"
-              : "text-sidebar-foreground hover:bg-sidebar-accent"
-          }
-        `}
+        className={`sidebar-link btn-press flex items-center gap-3 rounded-xl px-3 py-2.5 transition-all duration-200 ${
+          pathname === "/settings"
+            ? "bg-sidebar-accent text-sidebar-accent-foreground shadow-sm active"
+            : "text-sidebar-foreground hover:bg-sidebar-accent hover:translate-x-0.5"
+        }`}
       >
 
         <Settings
-          className={`
-            h-5
-            w-5
-
-            ${
-              pathname === "/settings"
-                ? "text-primary"
-                : "text-muted-foreground"
-            }
-          `}
+          className={`h-5 w-5 transition-all duration-200 ${
+            pathname === "/settings"
+              ? "text-primary"
+              : "text-muted-foreground"
+          }`}
         />
 
 
-        Settings
+        <span className="text-sm font-medium">Settings</span>
 
       </Link>
 

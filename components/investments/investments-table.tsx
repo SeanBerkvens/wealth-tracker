@@ -13,8 +13,6 @@ type Investment = {
   purchase_date?: string;
 };
 
-type Filter = "all" | "gainers" | "losers";
-
 type SortKey =
   | "symbol"
   | "name"
@@ -81,7 +79,6 @@ export default function InvestmentsTable({
   searchQuery?: string;
   onRefresh?: () => void;
 }) {
-  const [filter, setFilter] = useState<Filter>("all");
   const [sortKey, setSortKey] = useState<SortKey>("market");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
@@ -121,16 +118,8 @@ export default function InvestmentsTable({
     );
   }, [enriched, searchQuery]);
 
-  const filtered = useMemo(() => {
-    return searched.filter((inv) => {
-      if (filter === "gainers") return inv.gain >= 0;
-      if (filter === "losers") return inv.gain < 0;
-      return true;
-    });
-  }, [searched, filter]);
-
   const sorted = useMemo(() => {
-    const data = [...filtered];
+    const data = [...searched];
 
     const getValue = (inv: EnrichedInvestment): string | number => {
       switch (sortKey) {
@@ -173,7 +162,7 @@ export default function InvestmentsTable({
     });
 
     return data;
-  }, [filtered, sortKey, sortDir]);
+  }, [searched, sortKey, sortDir]);
 
   const toggleSort = (key: SortKey) => {
     if (sortKey === key) {
@@ -186,37 +175,6 @@ export default function InvestmentsTable({
 
   return (
     <div>
-
-      {/* FILTER BAR */}
-      <div className="flex items-center gap-2 mb-4">
-        <button
-          onClick={() => setFilter("all")}
-          className={`px-3 py-1 rounded-md border text-sm ${
-            filter === "all" ? "bg-primary text-white" : ""
-          }`}
-        >
-          All
-        </button>
-
-        <button
-          onClick={() => setFilter("gainers")}
-          className={`px-3 py-1 rounded-md border text-sm ${
-            filter === "gainers" ? "bg-emerald-600 text-white" : ""
-          }`}
-        >
-          Gainers
-        </button>
-
-        <button
-          onClick={() => setFilter("losers")}
-          className={`px-3 py-1 rounded-md border text-sm ${
-            filter === "losers" ? "bg-rose-600 text-white" : ""
-          }`}
-        >
-          Losers
-        </button>
-      </div>
-
       {/* TABLE */}
       <table className="w-full text-sm">
 

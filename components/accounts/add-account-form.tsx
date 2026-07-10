@@ -51,6 +51,7 @@ export default function AddAccountForm() {
           font-medium
           text-primary-foreground
           shadow-sm
+          btn-press
         "
       >
         Add Account
@@ -68,6 +69,7 @@ export default function AddAccountForm() {
             items-center
             justify-center
             bg-black/40
+            modal-overlay
           "
         >
 
@@ -82,6 +84,7 @@ export default function AddAccountForm() {
               border-border
               p-6
               space-y-4
+              modal-content
             "
           >
 
@@ -147,6 +150,7 @@ export default function AddAccountForm() {
                   px-4
                   py-2
                   bg-muted
+                  btn-press
                 "
               >
                 Cancel
@@ -161,6 +165,7 @@ export default function AddAccountForm() {
                   px-4
                   py-2
                   text-primary-foreground
+                  btn-press
                 "
               >
                 Save

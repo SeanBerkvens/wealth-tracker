@@ -69,13 +69,13 @@ export default function AssetAllocationChart({
       </div>
 
       {data.length === 0 || total <= 0 ? (
-        <div className="h-[400px] flex items-center justify-center text-muted-foreground text-sm">
+        <div className="h-[541px] flex items-center justify-center text-muted-foreground text-sm">
           No holdings to display
         </div>
       ) : (
         <>
           {/* Donut + Horizontal Stacked Bar — 1:2 ratio */}
-          <div className="grid gap-6 grid-cols-3 h-[400px]">
+          <div className="grid gap-6 grid-cols-3 h-[541px]">
             {/* Donut */}
             <div className="col-span-1">
               <ResponsiveContainer width="100%" height="100%">

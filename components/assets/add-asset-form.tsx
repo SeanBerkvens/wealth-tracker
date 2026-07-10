@@ -60,6 +60,7 @@ export default function AddAssetForm() {
           py-2
           font-medium
           text-primary-foreground
+          btn-press
         "
       >
         Add Asset
@@ -78,6 +79,7 @@ export default function AddAssetForm() {
             justify-center
             bg-black/40
             z-50
+            modal-overlay
           "
         >
 
@@ -92,6 +94,7 @@ export default function AddAssetForm() {
               border-border
               p-6
               space-y-4
+              modal-content
             "
           >
 
@@ -157,6 +160,7 @@ export default function AddAssetForm() {
                   bg-muted
                   px-4
                   py-2
+                  btn-press
                 "
               >
                 Cancel
@@ -171,6 +175,7 @@ export default function AddAssetForm() {
                   px-4
                   py-2
                   text-primary-foreground
+                  btn-press
                 "
               >
                 Save

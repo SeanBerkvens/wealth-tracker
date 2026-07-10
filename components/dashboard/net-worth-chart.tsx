@@ -32,6 +32,7 @@ export function NetWorthChart({
         border-border
         p-6
         shadow-sm
+        card-hover
       "
     >
 
