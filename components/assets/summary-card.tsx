@@ -2,17 +2,17 @@
 
 import { useEffect, useRef, useState } from "react";
 
-interface PortfolioValueCardProps {
-  value: number;
-  todayGainValue: number;
-  todayGainPercent: number;
-  holdings: number;
-  bookValue: number;
-}
-
 const ANIMATION_DURATION_MS = 500;
 
-export default function PortfolioValueCard({ value }: PortfolioValueCardProps) {
+export default function SummaryCard({
+  label,
+  value,
+  valueClassName = "",
+}: {
+  label: string;
+  value: number;
+  valueClassName?: string;
+}) {
   const [displayValue, setDisplayValue] = useState(value);
   const [isAnimating, setIsAnimating] = useState(false);
   const displayedValueRef = useRef(value);
@@ -51,19 +51,14 @@ export default function PortfolioValueCard({ value }: PortfolioValueCardProps) {
 
   return (
     <div className="rounded-2xl border border-border bg-card p-6 shadow-sm card-hover flex flex-col items-center justify-center h-full">
-      <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">
-        Portfolio Value
-      </p>
+      <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider">{label}</p>
       <p
         aria-live="polite"
         className={`mt-2 text-5xl font-bold tracking-tight transition-transform duration-300 ${
           isAnimating ? "scale-105" : "scale-100"
-        }`}
+        } ${valueClassName}`}
       >
-        ${displayValue.toLocaleString(undefined, {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })}
+        ${displayValue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
       </p>
     </div>
   );

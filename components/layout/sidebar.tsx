@@ -24,7 +24,7 @@ const navigation = [
     icon: Wallet,
   },
   {
-    name: "Assets",
+    name: "Assets & Liabilities",
     href: "/assets",
     icon: Building2,
   },

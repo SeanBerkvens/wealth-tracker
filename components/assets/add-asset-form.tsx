@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useRouter } from "next/navigation";
 
 
-export default function AddAssetForm() {
+export default function AddAssetForm({ compact = false }: { compact?: boolean }) {
+  const router = useRouter();
 
   const [open, setOpen] = useState(false);
 
@@ -41,7 +43,7 @@ export default function AddAssetForm() {
 
     setOpen(false);
 
-    window.location.reload();
+    router.refresh();
 
   }
 
@@ -53,15 +55,7 @@ export default function AddAssetForm() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="
-          rounded-xl
-          bg-primary
-          px-4
-          py-2
-          font-medium
-          text-primary-foreground
-          btn-press
-        "
+        className={`rounded-xl bg-primary font-medium text-primary-foreground btn-press ${compact ? "px-3 py-1.5 text-sm" : "px-4 py-2"}`}
       >
         Add Asset
       </button>

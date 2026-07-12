@@ -1,3 +1,4 @@
+import Link from "next/link";
 import WealthCard from "@/components/dashboard/wealth-card";
 import { NetWorthChart } from "@/components/dashboard/net-worth-chart";
 import { AssetAllocation } from "@/components/dashboard/asset-allocation";
@@ -6,63 +7,88 @@ import { supabase } from "@/lib/supabase";
 import ThemeToggle from "@/components/theme-toggle";
 
 export default async function DashboardPage() {
-  
-  const { data: accounts } = await supabase
-  .from("accounts")
-  .select("*");
+  const [
+    { data: accounts },
+    { data: assets },
+    { data: liabilities },
+    { data: investments },
+    { data: portfolios },
+  ] = await Promise.all([
+    supabase.from("accounts").select("*").order("created_at", { ascending: false }),
+    supabase.from("assets").select("*").order("created_at", { ascending: false }),
+    supabase.from("liabilities").select("*").order("created_at", { ascending: false }),
+    supabase.from("investments").select("*").order("created_at", { ascending: false }),
+    supabase.from("portfolios").select("id, name, is_ignored").order("name", { ascending: true }),
+  ]);
 
   const cashBalance =
-  accounts?.reduce(
-    (total, account) => total + Number(account.balance),
-    0
-  ) ?? 0;
+    accounts?.reduce(
+      (total, account) => total + Number(account.balance),
+      0
+    ) ?? 0;
 
-  const { data: assets } = await supabase
-  .from("assets")
-  .select("*");
+  const totalManualAssets =
+    assets?.filter((asset) => !asset.is_ignored).reduce((total, asset) => total + Number(asset.value), 0) ?? 0;
 
-  const totalAssets =
-  assets?.reduce(
-    (total, asset) => total + Number(asset.value),
-    0
-  ) ?? 0;
+  const portfolioAssets = (portfolios ?? []).map((portfolio) => ({
+    id: portfolio.id,
+    name: portfolio.name,
+    isIgnored: portfolio.is_ignored,
+    value:
+      investments
+        ?.filter((investment) => investment.portfolio === portfolio.name && !investment.is_ignored)
+        .reduce((total, investment) => total + Number(investment.value), 0) ?? 0,
+  }));
 
-  const { data: liabilities } = await supabase
-  .from("liabilities")
-  .select("*");
+  const unassignedInvestments = investments?.filter((investment) => !investment.portfolio) ?? [];
+  const unassignedPortfolioValue =
+    unassignedInvestments
+      .filter((investment) => !investment.is_ignored)
+      .reduce((total, investment) => total + Number(investment.value), 0) ?? 0;
 
-  const totalLiabilities =
-  liabilities?.reduce(
+  const portfolioValue = portfolioAssets.reduce(
+    (total, portfolio) => total + (portfolio.isIgnored ? 0 : portfolio.value),
+    unassignedPortfolioValue
+  );
+
+  const accountAssets = (accounts ?? []).filter((account) => Number(account.balance) >= 0);
+  const accountLiabilities = (accounts ?? []).filter((account) => Number(account.balance) < 0);
+
+  const totalAccountAssets = accountAssets
+    .filter((account) => !account.is_ignored)
+    .reduce((total, account) => total + Number(account.balance), 0);
+
+  const totalAccountLiabilities = accountLiabilities.reduce(
     (total, liability) =>
-      total + Number(liability.value),
+      total + (liability.is_ignored ? 0 : Math.abs(Number(liability.balance))),
     0
-  ) ?? 0;
+  );
 
-  const { data: investments } = await supabase
-  .from("investments")
-  .select("*");
+  const totalAssets = totalManualAssets + portfolioValue + totalAccountAssets;
+
+  const totalManualLiabilities =
+    liabilities
+      ?.filter((liability) => !liability.is_ignored)
+      .reduce((total, liability) => total + Number(liability.value), 0) ?? 0;
+
+  const totalLiabilities = totalManualLiabilities + totalAccountLiabilities;
 
   const totalInvestments =
-  investments?.reduce(
-    (total, investment) =>
-      total + Number(investment.value),
-    0
-  ) ?? 0;
+    investments?.reduce(
+      (total, investment) => total + Number(investment.value),
+      0
+    ) ?? 0;
 
-  const netWorth =
-  cashBalance +
-  totalAssets +
-  totalInvestments -
-  totalLiabilities;
+  const netWorth = totalAssets - totalLiabilities;
 
   const { data: history } = await supabase
-  .from("net_worth_history")
-  .select("*")
-  .order("date");
+    .from("net_worth_history")
+    .select("*")
+    .order("date");
 
   const allocationData = [
     { name: "Investments", value: totalInvestments },
-    { name: "Real Estate", value: totalAssets },
+    { name: "Real Estate", value: totalManualAssets },
     { name: "Cash", value: cashBalance },
   ];
 
@@ -88,7 +114,7 @@ export default async function DashboardPage() {
 
 
       <p className="mt-2 text-muted-foreground text-lg">
-        Here's your financial overview
+        Here&apos;s your financial overview
       </p>
 
 
@@ -110,42 +136,46 @@ export default async function DashboardPage() {
   {/* Hero Card */}
   <div className="lg:col-span-2">
     <WealthCard
-  title="Net Worth"
-  value={`$${netWorth.toLocaleString()}`}
-  change="+$12,500 this month"
-  icon="trend"
-  featured
-/>
+      title="Net Worth"
+      value={`$${netWorth.toLocaleString()}`}
+      change="+$12,500 this month"
+      icon="trend"
+      featured
+    />
   </div>
 
+  <Link href="/assets" className="block">
+    <WealthCard
+      title="Assets"
+      value={`$${totalAssets.toLocaleString()}`}
+      icon="home"
+    />
+  </Link>
 
-  <WealthCard
-  title="Assets"
-  value={`$${totalAssets.toLocaleString()}`}
-  icon="home"
-/>
+  <Link href="/assets" className="block">
+    <WealthCard
+      title="Liabilities"
+      value={`$${totalLiabilities.toLocaleString()}`}
+      icon="card"
+    />
+  </Link>
 
+  <Link href="/accounts" className="block">
+    <WealthCard
+      title="Cash"
+      value={`$${cashBalance.toLocaleString()}`}
+      icon="wallet"
+    />
+  </Link>
 
-  <WealthCard
-  title="Liabilities"
-  value={`$${totalLiabilities.toLocaleString()}`}
-  icon="card"
-/>
-
-
-  <WealthCard
-  title="Cash"
-  value={`$${cashBalance.toLocaleString()}`}
-  icon="wallet"
-/>
-
-
-  <WealthCard
-  title="Investments"
-  value={`$${totalInvestments.toLocaleString()}`}
-  change="+2.5%"
-  icon="piggy"
-/>
+  <Link href="/investments" className="block">
+    <WealthCard
+      title="Investments"
+      value={`$${totalInvestments.toLocaleString()}`}
+      change="+2.5%"
+      icon="piggy"
+    />
+  </Link>
 
 </div>
 

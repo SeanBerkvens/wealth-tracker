@@ -11,6 +11,7 @@ type Investment = {
   purchase_price: number | string;
   current_price: number | string;
   purchase_date?: string;
+  portfolio?: string;
 };
 
 type SortKey =
@@ -71,10 +72,14 @@ export default function InvestmentsTable({
   investments = [],
   searchQuery = "",
   onRefresh,
+  showPortfolio = false,
+  portfolios = [],
 }: {
   investments?: Investment[];
   searchQuery?: string;
   onRefresh?: () => void;
+  showPortfolio?: boolean;
+  portfolios?: string[];
 }) {
   const [sortKey, setSortKey] = useState<SortKey>("market");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -174,10 +179,11 @@ export default function InvestmentsTable({
     <div className="w-full">
       {/* TABLE */}
       <div className="overflow-x-auto">
-        <div className="mx-auto" style={{ minWidth: "900px" }}>
+        <div className="mx-auto" style={{ minWidth: showPortfolio ? "1000px" : "900px" }}>
           <table className="text-sm w-full table-fixed">
             <thead>
               <tr className="border-b border-border text-muted-foreground">
+                {showPortfolio && <th className="py-3 text-center uppercase w-[10%]">Portfolio</th>}
                 <th className="py-3 text-center uppercase w-[10%]"><SortHeader label="TICKER" keyName="symbol" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
                 <th className="py-3 text-center uppercase w-[14%]"><SortHeader label="COMPANY" keyName="name" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
                 <th className="py-3 text-center uppercase w-[8%]"><SortHeader label="SHARES" keyName="shares" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
@@ -199,6 +205,11 @@ export default function InvestmentsTable({
                   className="border-b border-border last:border-none hover:bg-muted/40 transition-colors"
                 >
 
+                  {showPortfolio && (
+                    <td className="py-3 text-center text-muted-foreground w-[10%]">
+                      {inv.portfolio || "Unassigned"}
+                    </td>
+                  )}
                   <td className="py-3 text-center font-semibold w-[10%]">{inv.symbol}</td>
                   <td className="py-3 text-center text-muted-foreground w-[14%]">{inv.name}</td>
 
@@ -246,6 +257,8 @@ export default function InvestmentsTable({
                         purchasePrice={inv.avg}
                         currentPrice={inv.current}
                         purchaseDate={inv.purchase_date}
+                        portfolio={inv.portfolio}
+                        portfolios={portfolios}
                         onSuccess={onRefresh}
                       />
                     </div>

@@ -12,6 +12,8 @@ interface InvestmentActionsProps {
   purchasePrice: number;
   currentPrice: number;
   purchaseDate?: string;
+  portfolio?: string | null;
+  portfolios?: string[];
   onSuccess?: () => void;
 }
 
@@ -24,6 +26,8 @@ export default function InvestmentActions({
   purchasePrice,
   currentPrice,
   purchaseDate,
+  portfolio,
+  portfolios = [],
   onSuccess,
 }: InvestmentActionsProps) {
 
@@ -42,6 +46,8 @@ export default function InvestmentActions({
 
   const [newCurrentPrice, setNewCurrentPrice] =
     useState(currentPrice.toString());
+
+  const [newPortfolio, setNewPortfolio] = useState(portfolio || "");
 
   const [newPurchaseDate, setNewPurchaseDate] = useState(
     purchaseDate || new Date().toISOString().split("T")[0]
@@ -70,6 +76,7 @@ export default function InvestmentActions({
         current_price: Number(newCurrentPrice),
         value,
         purchase_date: newPurchaseDate,
+        portfolio: newPortfolio || null,
       })
       .eq("id", id);
 
@@ -273,6 +280,29 @@ export default function InvestmentActions({
                 p-3
               "
             />
+
+            <label className="text-xs text-muted-foreground block">
+              Portfolio
+            </label>
+            <select
+              value={newPortfolio}
+              onChange={(e) => setNewPortfolio(e.target.value)}
+              className="
+                w-full
+                rounded-lg
+                border
+                border-border
+                bg-background
+                p-3
+              "
+            >
+              <option value="">Unassigned</option>
+              {portfolios.map((portfolioItem) => (
+                <option key={portfolioItem} value={portfolioItem}>
+                  {portfolioItem}
+                </option>
+              ))}
+            </select>
 
             {/* PURCHASE DATE */}
             <label className="text-xs text-muted-foreground block">

@@ -6,7 +6,6 @@ import AddInvestmentForm from "@/components/investments/add-investment-form";
 import AddPortfolioForm from "@/components/investments/add-portfolio-form";
 import PriceRefresh from "@/components/investments/price-refresh";
 import PortfolioValueCard from "@/components/investments/portfolio-value-card";
-import PortfolioSummaryCard from "@/components/investments/portfolio-summary-card";
 import PortfolioHistoryChart from "@/components/investments/portfolio-history-chart";
 import AssetAllocationChart from "@/components/investments/asset-allocation-chart";
 import InvestmentsTable from "@/components/investments/investments-table";
@@ -255,6 +254,8 @@ export default function InvestmentsPage() {
             investments={filteredInvestments}
             searchQuery={searchQuery}
             onRefresh={triggerRefresh}
+            showPortfolio={selectedPortfolio === "all"}
+            portfolios={portfolios}
           />
         </div>
       </div>
