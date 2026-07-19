@@ -1,12 +1,22 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import WealthCard from "@/components/dashboard/wealth-card";
 import { NetWorthChart } from "@/components/dashboard/net-worth-chart";
 import { AssetAllocation } from "@/components/dashboard/asset-allocation";
 import { RecentTransactions } from "@/components/dashboard/recent-transactions";
-import { supabase } from "@/lib/supabase";
-import ThemeToggle from "@/components/theme-toggle";
+import { createClient } from "@/lib/supabase/server";
 
 export default async function DashboardPage() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/");
+  }
+
   const [
     { data: accounts },
     { data: assets },
@@ -123,9 +133,6 @@ export default async function DashboardPage() {
     </p>
 
   </div>
-
-
-  <ThemeToggle />
 
 </div>
 

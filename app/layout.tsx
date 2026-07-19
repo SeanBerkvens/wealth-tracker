@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { Outfit, Geist_Mono } from "next/font/google";
 import "./globals.css";
-import Sidebar from "@/components/layout/sidebar";
 import Providers from "@/components/providers";
+import AppShell from "@/components/layout/app-shell";
 
 const outfit = Outfit({
   variable: "--font-sans",
@@ -32,10 +32,7 @@ export default function RootLayout({
     >
       <body className="min-h-full flex flex-col">
         <Providers>
-          <div className="flex min-h-screen">
-            <Sidebar />
-            <main className="flex-1 p-8 animate-fade-in">{children}</main>
-          </div>
+          <AppShell>{children}</AppShell>
         </Providers>
       </body>
     </html>

@@ -1,6 +1,7 @@
 "use client";
 
 import { ThemeProvider } from "@/components/theme-provider";
+import { AuthProvider } from "@/components/auth/auth-provider";
 
 export default function Providers({
   children,
@@ -9,7 +10,7 @@ export default function Providers({
 }) {
   return (
     <ThemeProvider>
-      {children}
+      <AuthProvider>{children}</AuthProvider>
     </ThemeProvider>
   );
 }
