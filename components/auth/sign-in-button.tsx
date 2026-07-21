@@ -16,12 +16,22 @@ export function SignInButton({
 
   const handleSignIn = async () => {
     setLoading(true);
-    await supabase.auth.signInWithOAuth({
+
+    // Use NEXT_PUBLIC_SITE_URL if available (Vercel), fall back to window.location.origin (localhost)
+    const siteUrl =
+      process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+
+    const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: `${siteUrl}/auth/callback`,
       },
     });
+
+    if (error) {
+      console.error("Sign in error:", error.message);
+      setLoading(false);
+    }
   };
 
   return (
