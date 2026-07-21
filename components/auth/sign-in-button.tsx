@@ -17,9 +17,9 @@ export function SignInButton({
   const handleSignIn = async () => {
     setLoading(true);
 
-    // Use NEXT_PUBLIC_SITE_URL if available (Vercel), fall back to window.location.origin (localhost)
+    // Use window.location.origin for local dev, NEXT_PUBLIC_SITE_URL for Vercel
     const siteUrl =
-      process.env.NEXT_PUBLIC_SITE_URL || window.location.origin;
+      window.location.origin || process.env.NEXT_PUBLIC_SITE_URL;
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider,

@@ -53,13 +53,11 @@ const navigation = [
     href: "/tools",
     icon: Calculator,
     subItems: [
-      { name: "Investment Calculator", href: "/tools/investment-calculator" },
       { name: "Mortgage Calculator", href: "/tools/mortgage-calculator" },
       { name: "Compound Interest Calculator", href: "/tools/compound-interest-calculator" },
       { name: "Loan Calculator", href: "/tools/loan-calculator" },
       { name: "Mortgage Payoff Calculator", href: "/tools/mortgage-payoff-calculator" },
       { name: "Retirement Calculator", href: "/tools/retirement-calculator" },
-      { name: "Interest Calculator", href: "/tools/interest-calculator" },
     ],
   },
 ];
