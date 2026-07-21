@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
 
 
 export default function AddAccountForm() {
+  const { user } = useAuth();
 
   const [open, setOpen] = useState(false);
 
@@ -17,6 +19,7 @@ export default function AddAccountForm() {
 
     e.preventDefault();
 
+    if (!user) return;
 
     await supabase
       .from("accounts")
@@ -24,6 +27,7 @@ export default function AddAccountForm() {
         name,
         type,
         balance: Number(balance),
+        user_id: user.id,
       });
 
 

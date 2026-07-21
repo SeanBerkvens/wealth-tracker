@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/auth/auth-provider";
 
 export default function AddLiabilityForm({ compact = false }: { compact?: boolean }) {
+  const { user } = useAuth();
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
@@ -13,10 +15,12 @@ export default function AddLiabilityForm({ compact = false }: { compact?: boolea
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!user) return;
     const { error } = await supabase.from("liabilities").insert({
       name,
       category,
       value: Number(value),
+      user_id: user.id,
     });
 
     if (error) {

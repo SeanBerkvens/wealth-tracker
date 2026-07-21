@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 import { getHistoricalPrices, getTradingSessionBounds } from "@/lib/yahoo";
 
 export async function GET(req: Request) {
@@ -55,8 +56,33 @@ export async function GET(req: Request) {
 
     const portfolio = searchParams.get("portfolio");
 
+    // Create authenticated server client
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll() {},
+        },
+      }
+    );
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const userId = user.id;
+
     // Fetch all investments (optionally filtered by portfolio)
-    let investmentsQuery = supabase.from("investments").select("*");
+    let investmentsQuery = supabase.from("investments").select("*").eq("user_id", userId);
     if (portfolio) {
       investmentsQuery = investmentsQuery.eq("portfolio", portfolio);
     }
@@ -71,6 +97,7 @@ export async function GET(req: Request) {
       const { data: firstTx } = await supabase
         .from("transactions")
         .select("date")
+        .eq("user_id", userId)
         .order("date", { ascending: true })
         .limit(1);
 
@@ -93,6 +120,7 @@ export async function GET(req: Request) {
     const { data: earliestTx } = await supabase
       .from("transactions")
       .select("date")
+      .eq("user_id", userId)
       .order("date", { ascending: true })
       .limit(1);
 
@@ -190,7 +218,7 @@ export async function GET(req: Request) {
     const heldSymbols = new Set(investments.map((inv) => inv.symbol));
 
     // Fetch all transactions to build cumulative book value (optionally filtered by portfolio)
-    let txQuery = supabase.from("transactions").select("*").order("date", { ascending: true });
+    let txQuery = supabase.from("transactions").select("*").eq("user_id", userId).order("date", { ascending: true });
     if (portfolio) {
       txQuery = txQuery.eq("portfolio", portfolio);
     }

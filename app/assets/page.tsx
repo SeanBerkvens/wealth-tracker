@@ -1,4 +1,5 @@
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
 import AddAssetForm from "@/components/assets/add-asset-form";
 import AssetItem from "@/components/assets/asset-item";
 import SyncedItem from "@/components/assets/synced-item";
@@ -8,15 +9,28 @@ import AddLiabilityForm from "@/components/liabilities/add-liability-form";
 import LiabilityItem from "@/components/liabilities/liability-item";
 
 export default async function AssetsPage() {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/");
+  }
+
+  const userId = user.id;
+
   const [{ data: assets }, { data: liabilities }, { data: investments }, { data: portfolios }, { data: accounts }] = await Promise.all([
-    supabase.from("assets").select("*").order("created_at", { ascending: false }),
+    supabase.from("assets").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
     supabase
       .from("liabilities")
       .select("*")
+      .eq("user_id", userId)
       .order("created_at", { ascending: false }),
-    supabase.from("investments").select("portfolio, value, is_ignored"),
-    supabase.from("portfolios").select("id, name, is_ignored").order("name", { ascending: true }),
-    supabase.from("accounts").select("id, name, type, balance, is_ignored").order("created_at", { ascending: false }),
+    supabase.from("investments").select("portfolio, value, is_ignored").eq("user_id", userId),
+    supabase.from("portfolios").select("id, name, is_ignored").eq("user_id", userId).order("name", { ascending: true }),
+    supabase.from("accounts").select("id, name, type, balance, is_ignored").eq("user_id", userId).order("created_at", { ascending: false }),
   ]);
 
   const totalManualAssets =

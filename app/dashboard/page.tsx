@@ -17,6 +17,8 @@ export default async function DashboardPage() {
     redirect("/");
   }
 
+  const userId = user.id;
+
   const [
     { data: accounts },
     { data: assets },
@@ -24,11 +26,11 @@ export default async function DashboardPage() {
     { data: investments },
     { data: portfolios },
   ] = await Promise.all([
-    supabase.from("accounts").select("*").order("created_at", { ascending: false }),
-    supabase.from("assets").select("*").order("created_at", { ascending: false }),
-    supabase.from("liabilities").select("*").order("created_at", { ascending: false }),
-    supabase.from("investments").select("*").order("created_at", { ascending: false }),
-    supabase.from("portfolios").select("id, name, is_ignored").order("name", { ascending: true }),
+    supabase.from("accounts").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+    supabase.from("assets").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+    supabase.from("liabilities").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+    supabase.from("investments").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
+    supabase.from("portfolios").select("id, name, is_ignored").eq("user_id", userId).order("name", { ascending: true }),
   ]);
 
   const cashBalance =
@@ -94,6 +96,7 @@ export default async function DashboardPage() {
   const { data: history } = await supabase
     .from("net_worth_history")
     .select("*")
+    .eq("user_id", userId)
     .order("date");
 
   const allocationData = [

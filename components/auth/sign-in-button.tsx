@@ -25,6 +25,10 @@ export function SignInButton({
       provider,
       options: {
         redirectTo: `${siteUrl}/auth/callback`,
+        // Force Google to show account picker every time
+        queryParams: {
+          prompt: "select_account",
+        },
       },
     });
 

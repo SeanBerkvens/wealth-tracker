@@ -2,12 +2,14 @@
 
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
 
 export default function AddPortfolioForm({
   onSuccess,
 }: {
   onSuccess?: () => void;
 }) {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);
@@ -15,11 +17,13 @@ export default function AddPortfolioForm({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name.trim() || saving) return;
+    if (!user) return;
 
     setSaving(true);
 
     const { error } = await supabase.from("portfolios").insert({
       name: name.trim(),
+      user_id: user.id,
     });
 
     setSaving(false);

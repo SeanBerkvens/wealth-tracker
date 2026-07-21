@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createServerClient } from "@supabase/ssr";
+import { cookies } from "next/headers";
 import { getStockQuote } from "@/lib/yahoo";
 
 export async function GET(req: Request) {
@@ -7,7 +8,35 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const portfolio = searchParams.get("portfolio");
 
-    let query = supabase.from("investments").select("*");
+    // Create authenticated server client
+    const cookieStore = await cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return cookieStore.getAll();
+          },
+          setAll() {},
+        },
+      }
+    );
+
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "Unauthorized" },
+        { status: 401 }
+      );
+    }
+
+    const userId = user.id;
+
+    let query = supabase.from("investments").select("*").eq("user_id", userId);
     if (portfolio) {
       query = query.eq("portfolio", portfolio);
     }
@@ -20,6 +49,7 @@ export async function GET(req: Request) {
         unrealizedGainValue: 0,
         unrealizedGainPercent: 0,
         bookValue: 0,
+        netDeposits: 0,
       });
     }
 

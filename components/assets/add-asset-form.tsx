@@ -3,9 +3,11 @@
 import { useState } from "react";
 import { supabase } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
+import { useAuth } from "@/components/auth/auth-provider";
 
 
 export default function AddAssetForm({ compact = false }: { compact?: boolean }) {
+  const { user } = useAuth();
   const router = useRouter();
 
   const [open, setOpen] = useState(false);
@@ -21,6 +23,7 @@ export default function AddAssetForm({ compact = false }: { compact?: boolean })
 
     e.preventDefault();
 
+    if (!user) return;
 
     const { error } = await supabase
       .from("assets")
@@ -28,6 +31,7 @@ export default function AddAssetForm({ compact = false }: { compact?: boolean })
         name,
         category,
         value: Number(value),
+        user_id: user.id,
       });
 
 

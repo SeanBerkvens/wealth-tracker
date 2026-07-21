@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
 
 type Stock = {
   symbol: string;
@@ -15,6 +16,7 @@ export default function AddInvestmentForm({
   onSuccess?: () => void;
   portfolios?: string[];
 }) {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
 
   const [query, setQuery] = useState("");
@@ -85,6 +87,8 @@ export default function AddInvestmentForm({
 
     setStatusMessage(null);
 
+    if (!user) return;
+
     // 1. Record the transaction
     const { error: txError } = await supabase.from("transactions").insert({
       symbol: selected.symbol,
@@ -94,6 +98,7 @@ export default function AddInvestmentForm({
       type: transactionType,
       date: transactionDate,
       portfolio: portfolio || null,
+      user_id: user.id,
     });
 
     if (txError) {
@@ -158,6 +163,7 @@ export default function AddInvestmentForm({
           value: currentPrice ? sharesNum * currentPrice : sharesNum * priceNum,
           purchase_date: transactionDate,
           portfolio: portfolio || null,
+          user_id: user.id,
         });
 
         if (insertError) {

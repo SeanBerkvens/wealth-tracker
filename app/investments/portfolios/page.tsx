@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/lib/supabase";
+import { useAuth } from "@/components/auth/auth-provider";
 import AddInvestmentForm from "@/components/investments/add-investment-form";
 import AddPortfolioForm from "@/components/investments/add-portfolio-form";
 import PriceRefresh from "@/components/investments/price-refresh";
@@ -35,6 +36,7 @@ type GainsData = {
 };
 
 export default function PortfoliosPage() {
+  const { user } = useAuth();
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
@@ -87,16 +89,18 @@ export default function PortfoliosPage() {
 
   useEffect(() => {
     async function fetchInvestments() {
+      if (!user) return;
       const { data } = await supabase
         .from("investments")
         .select("*")
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
       setInvestments(data ?? []);
     }
 
     fetchInvestments();
-  }, [refreshKey]);
+  }, [refreshKey, user]);
 
   useEffect(() => {
     async function fetchGains() {
@@ -123,16 +127,18 @@ export default function PortfoliosPage() {
 
   useEffect(() => {
     async function fetchPortfolios() {
+      if (!user) return;
       const { data } = await supabase
         .from("portfolios")
         .select("name")
+        .eq("user_id", user.id)
         .order("name", { ascending: true });
 
       setPortfolios((data ?? []).map((p: { name: string }) => p.name));
     }
 
     fetchPortfolios();
-  }, [refreshKey]);
+  }, [refreshKey, user]);
 
   const totalValue = filteredInvestments.reduce(
     (sum, inv) => sum + Number(inv.value),
