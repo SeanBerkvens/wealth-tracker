@@ -15,6 +15,7 @@ interface AllocationItem {
 
 interface AssetAllocationProps {
   data?: AllocationItem[];
+  details?: AllocationItem[];
 }
 
 const COLORS = [
@@ -23,6 +24,9 @@ const COLORS = [
   "var(--chart-3)",
   "var(--chart-4)",
   "var(--chart-5)",
+  "var(--primary)",
+  "#f59e0b",
+  "#8b5cf6",
 ];
 
 function formatCurrency(value: number) {
@@ -32,7 +36,7 @@ function formatCurrency(value: number) {
   })}`;
 }
 
-export function AssetAllocation({ data = [] }: AssetAllocationProps) {
+export function AssetAllocation({ data = [], details }: AssetAllocationProps) {
   const total = data.reduce((sum, item) => sum + Number(item.value), 0);
 
   const hasData = total > 0;
@@ -52,7 +56,7 @@ export function AssetAllocation({ data = [] }: AssetAllocationProps) {
       {/* Header */}
       <div className="mb-6">
         <h2 className="text-xl font-semibold text-card-foreground">
-          Asset Allocation
+          Wealth Breakdown
         </h2>
 
         <p className="mt-1 text-sm text-muted-foreground">
@@ -109,7 +113,7 @@ export function AssetAllocation({ data = [] }: AssetAllocationProps) {
 
           {/* Breakdown */}
           <div className="mt-4 space-y-3">
-            {data.map((item, index) => (
+            {(details ?? data).map((item, index) => (
               <div
                 key={item.name}
                 className="flex items-center justify-between text-sm"

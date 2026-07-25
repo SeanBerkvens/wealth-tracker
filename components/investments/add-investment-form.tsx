@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/auth/auth-provider";
 
 type Stock = {
@@ -17,6 +17,7 @@ export default function AddInvestmentForm({
   portfolios?: string[];
 }) {
   const { user } = useAuth();
+  const supabase = createClient();
   const [open, setOpen] = useState(false);
 
   const [query, setQuery] = useState("");

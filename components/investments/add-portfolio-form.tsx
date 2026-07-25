@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/auth/auth-provider";
 
 export default function AddPortfolioForm({
@@ -10,6 +10,7 @@ export default function AddPortfolioForm({
   onSuccess?: () => void;
 }) {
   const { user } = useAuth();
+  const supabase = createClient();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [saving, setSaving] = useState(false);

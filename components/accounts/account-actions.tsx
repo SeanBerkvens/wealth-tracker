@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 
 
 interface AccountActionsProps {
@@ -19,6 +19,7 @@ export default function AccountActions({
   balance,
 }: AccountActionsProps) {
 
+  const supabase = createClient();
   const [editing, setEditing] = useState(false);
 
   const [newName, setNewName] = useState(name);

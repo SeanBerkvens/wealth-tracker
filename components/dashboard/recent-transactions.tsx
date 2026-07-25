@@ -1,31 +1,25 @@
 "use client";
 
+import Link from "next/link";
 
-const transactions = [
-  {
-    name: "Paycheque",
-    category: "Income",
-    amount: "+$2,500",
-  },
-  {
-    name: "Groceries",
-    category: "Expense",
-    amount: "-$150",
-  },
-  {
-    name: "Dividend",
-    category: "Investment",
-    amount: "+$45",
-  },
-  {
-    name: "Gas",
-    category: "Expense",
-    amount: "-$80",
-  },
-];
+interface Transaction {
+  id: string;
+  symbol: string;
+  name: string;
+  shares: number;
+  price: number;
+  type: "buy" | "sell";
+  date: string;
+  portfolio?: string | null;
+}
 
+interface RecentTransactionsProps {
+  transactions?: Transaction[];
+}
 
-export function RecentTransactions() {
+export function RecentTransactions({ transactions = [] }: RecentTransactionsProps) {
+  const hasData = transactions.length > 0;
+
   return (
     <div
       className="
@@ -38,72 +32,74 @@ export function RecentTransactions() {
         card-hover
       "
     >
-
       {/* Header */}
       <div className="mb-6">
-
         <h2 className="text-xl font-semibold text-card-foreground">
           Recent Activity
         </h2>
 
         <p className="mt-1 text-sm text-muted-foreground">
-          Latest changes to your finances
+          Latest transactions
         </p>
-
       </div>
 
-
-      {/* Transactions */}
-      <div className="space-y-3">
-
-        {transactions.map((transaction) => (
-
-          <div
-            key={transaction.name}
-            className="
-              flex
-              items-center
-              justify-between
-              rounded-xl
-              bg-muted
-              p-4
-            "
-          >
-
-            <div>
-
-              <p className="font-medium text-card-foreground">
-                {transaction.name}
-              </p>
-
-              <p className="text-sm text-muted-foreground">
-                {transaction.category}
-              </p>
-
-            </div>
-
-
-            <p
-              className={`
-                font-semibold
-                ${
-                  transaction.amount.startsWith("+")
-                    ? "text-green-600"
-                    : "text-red-600"
-                }
-              `}
+      {!hasData ? (
+        <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
+          No transactions yet
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {transactions.map((tx) => (
+            <div
+              key={tx.id}
+              className="
+                flex
+                items-center
+                justify-between
+                rounded-xl
+                bg-muted
+                p-4
+              "
             >
-              {transaction.amount}
-            </p>
+              <div>
+                <p className="font-medium text-card-foreground">
+                  {tx.symbol}
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {tx.shares} shares @ ${Number(tx.price).toFixed(2)}
+                  {tx.portfolio ? ` · ${tx.portfolio}` : ""}
+                </p>
+              </div>
 
+              <div className="text-right">
+                <p
+                  className={`font-semibold ${
+                    tx.type === "buy"
+                      ? "text-emerald-600 dark:text-emerald-400"
+                      : "text-rose-600 dark:text-rose-400"
+                  }`}
+                >
+                  {tx.type === "buy" ? "Buy" : "Sell"}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {new Date(tx.date).toLocaleDateString()}
+                </p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
-          </div>
-
-        ))}
-
-      </div>
-
-
+      {hasData && (
+        <div className="mt-4 text-center">
+          <Link
+            href="/investments/portfolios"
+            className="text-sm text-primary hover:underline"
+          >
+            View all transactions →
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

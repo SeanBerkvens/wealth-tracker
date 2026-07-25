@@ -1,0 +1,105 @@
+"use client";
+
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Cell,
+} from "recharts";
+
+interface Holding {
+  symbol: string;
+  name: string;
+  value: number;
+}
+
+interface TopHoldingsProps {
+  holdings: Holding[];
+}
+
+const COLORS = [
+  "var(--chart-1)",
+  "var(--chart-2)",
+  "var(--chart-3)",
+  "var(--chart-4)",
+  "var(--chart-5)",
+];
+
+export default function TopHoldings({ holdings }: TopHoldingsProps) {
+  const top5 = [...holdings]
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 5);
+
+  if (top5.length === 0) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm card-hover">
+        <div className="mb-6">
+          <h2 className="text-xl font-semibold text-card-foreground">
+            Top Holdings
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Your largest investment positions
+          </p>
+        </div>
+        <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
+          No investments yet
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-border bg-card p-6 shadow-sm card-hover">
+      <div className="mb-6">
+        <h2 className="text-xl font-semibold text-card-foreground">
+          Top Holdings
+        </h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Your largest investment positions
+        </p>
+      </div>
+
+      <div className="h-[200px]">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            data={top5}
+            layout="vertical"
+            margin={{ top: 0, right: 20, left: 40, bottom: 0 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+            <XAxis
+              type="number"
+              stroke="var(--muted-foreground)"
+              tickFormatter={(value) => `$${Math.round(value / 1000)}k`}
+            />
+            <YAxis
+              type="category"
+              dataKey="symbol"
+              stroke="var(--muted-foreground)"
+              tick={{ fontSize: 13 }}
+              width={50}
+            />
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "var(--card)",
+                borderColor: "var(--border)",
+                color: "var(--card-foreground)",
+                borderRadius: "12px",
+              }}
+              formatter={(value) => [`$${Number(value).toLocaleString()}`, "Value"]}
+            />
+            <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={20}>
+              {top5.map((_, index) => (
+                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              ))}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  );
+}

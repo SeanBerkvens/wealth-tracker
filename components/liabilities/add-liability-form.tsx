@@ -1,13 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/auth-provider";
 
 export default function AddLiabilityForm({ compact = false }: { compact?: boolean }) {
   const { user } = useAuth();
   const router = useRouter();
+  const supabase = createClient();
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");

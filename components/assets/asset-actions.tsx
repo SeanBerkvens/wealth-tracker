@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
 interface AssetActionsProps {
@@ -15,6 +15,7 @@ interface AssetActionsProps {
 
 export default function AssetActions({ id, name, category, value, isIgnored, onIgnoredChange }: AssetActionsProps) {
   const router = useRouter();
+  const supabase = createClient();
   const [editing, setEditing] = useState(false);
   const [newName, setNewName] = useState(name);
   const [newCategory, setNewCategory] = useState(category);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/auth/auth-provider";
 import AddInvestmentForm from "@/components/investments/add-investment-form";
 import AddPortfolioForm from "@/components/investments/add-portfolio-form";
@@ -37,6 +37,7 @@ type GainsData = {
 
 export default function PortfoliosPage() {
   const { user } = useAuth();
+  const supabase = createClient();
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);

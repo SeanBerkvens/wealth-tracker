@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import InvestmentActions from "@/components/investments/investment-actions";
+import Sparkline from "@/components/investments/sparkline";
+import RangeBar from "@/components/investments/range-bar";
 
 type Investment = {
   id: string;
@@ -38,6 +40,20 @@ type EnrichedInvestment = {
   gainPct: number;
   positive: boolean;
   purchase_date?: string;
+  portfolio?: string;
+};
+
+type StockDetail = {
+  symbol: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  dayLow: number;
+  dayHigh: number;
+  week52Low: number;
+  week52High: number;
+  sparkline: number[];
+  positive: boolean;
 };
 
 function SortHeader({
@@ -83,6 +99,8 @@ export default function InvestmentsTable({
 }) {
   const [sortKey, setSortKey] = useState<SortKey>("market");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [stockDetails, setStockDetails] = useState<Map<string, StockDetail>>(new Map());
+  const fetchIdRef = useRef(0);
 
   const enriched = useMemo(() => {
     return (investments ?? []).map((inv) => {
@@ -96,7 +114,9 @@ export default function InvestmentsTable({
       const gainPct = book !== 0 ? (gain / book) * 100 : 0;
 
       return {
-        ...inv,
+        id: inv.id,
+        symbol: inv.symbol,
+        name: inv.name,
         shares,
         avg,
         current,
@@ -105,8 +125,32 @@ export default function InvestmentsTable({
         gain,
         gainPct,
         positive: gain >= 0,
+        purchase_date: inv.purchase_date,
+        portfolio: inv.portfolio,
       };
     });
+  }, [investments]);
+
+  // Fetch stock details for all symbols
+  useEffect(() => {
+    const symbols = [...new Set((investments ?? []).map((inv) => inv.symbol))];
+    if (symbols.length === 0) return;
+
+    const thisFetchId = ++fetchIdRef.current;
+
+    fetch(`/api/stocks/details?symbols=${encodeURIComponent(symbols.join(","))}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (thisFetchId !== fetchIdRef.current) return;
+        if (data?.details) {
+          const map = new Map<string, StockDetail>();
+          for (const detail of data.details) {
+            map.set(detail.symbol, detail);
+          }
+          setStockDetails(map);
+        }
+      })
+      .catch(() => {});
   }, [investments]);
 
   const searched = useMemo(() => {
@@ -175,99 +219,149 @@ export default function InvestmentsTable({
     }
   };
 
+  const getDetail = (symbol: string): StockDetail | undefined => {
+    return stockDetails.get(symbol);
+  };
+
   return (
     <div className="w-full">
       {/* TABLE */}
       <div className="overflow-x-auto">
-        <div className="mx-auto" style={{ minWidth: showPortfolio ? "1000px" : "900px" }}>
+        <div className="mx-auto" style={{ minWidth: showPortfolio ? "1200px" : "1100px" }}>
           <table className="text-sm w-full table-fixed">
             <thead>
               <tr className="border-b border-border text-muted-foreground">
-                {showPortfolio && <th className="py-3 text-center uppercase w-[10%]">Portfolio</th>}
-                <th className="py-3 text-center uppercase w-[10%]"><SortHeader label="TICKER" keyName="symbol" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
-                <th className="py-3 text-center uppercase w-[14%]"><SortHeader label="COMPANY" keyName="name" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
-                <th className="py-3 text-center uppercase w-[8%]"><SortHeader label="SHARES" keyName="shares" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
-                <th className="py-3 text-center uppercase w-[10%]"><SortHeader label="LAST" keyName="last" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
-                <th className="py-3 text-center uppercase w-[10%]"><SortHeader label="AVG" keyName="avg" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
-                <th className="py-3 text-center uppercase w-[10%]"><SortHeader label="BOOK" keyName="book" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
-                <th className="py-3 text-center uppercase w-[10%]"><SortHeader label="MARKET" keyName="market" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
-                <th className="py-3 text-center uppercase w-[10%]"><SortHeader label="GAIN $" keyName="gain" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
-                <th className="py-3 text-center uppercase w-[10%]"><SortHeader label="GAIN %" keyName="gainPct" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
-
-                <th className="py-3 text-center uppercase w-[8%]">ACTIONS</th>
+                {showPortfolio && <th className="py-3 text-center uppercase w-[8%]">Portfolio</th>}
+                <th className="py-3 text-center uppercase w-[7%]"><SortHeader label="TICKER" keyName="symbol" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center uppercase w-[12%]"><SortHeader label="COMPANY" keyName="name" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center uppercase w-[8%]">DAY</th>
+                <th className="py-3 text-center uppercase w-[12%]">DAY RANGE</th>
+                <th className="py-3 text-center uppercase w-[12%]">52W RANGE</th>
+                <th className="py-3 text-center uppercase w-[6%]"><SortHeader label="SHARES" keyName="shares" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center uppercase w-[7%]"><SortHeader label="LAST" keyName="last" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center uppercase w-[7%]"><SortHeader label="AVG" keyName="avg" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center uppercase w-[7%]"><SortHeader label="BOOK" keyName="book" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center uppercase w-[7%]"><SortHeader label="MARKET" keyName="market" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center uppercase w-[7%]"><SortHeader label="GAIN $" keyName="gain" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center uppercase w-[7%]"><SortHeader label="GAIN %" keyName="gainPct" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center uppercase w-[6%]">ACTIONS</th>
               </tr>
             </thead>
 
             <tbody>
-              {sorted.map((inv) => (
-                <tr
-                  key={inv.id}
-                  className="border-b border-border last:border-none hover:bg-muted/40 transition-colors"
-                >
+              {sorted.map((inv) => {
+                const detail = getDetail(inv.symbol);
+                const isPositive = detail ? detail.positive : inv.positive;
 
-                  {showPortfolio && (
-                    <td className="py-3 text-center text-muted-foreground w-[10%]">
-                      {inv.portfolio || "Unassigned"}
+                return (
+                  <tr
+                    key={inv.id}
+                    className="border-b border-border last:border-none hover:bg-muted/40 transition-colors"
+                  >
+                    {showPortfolio && (
+                      <td className="py-3 text-center text-muted-foreground w-[8%]">
+                        {inv.portfolio || "Unassigned"}
+                      </td>
+                    )}
+                    <td className="py-3 text-center font-semibold w-[7%]">{inv.symbol}</td>
+                    <td className="py-3 text-center text-muted-foreground w-[12%] truncate max-w-0" title={inv.name}>
+                      {inv.name}
                     </td>
-                  )}
-                  <td className="py-3 text-center font-semibold w-[10%]">{inv.symbol}</td>
-                  <td className="py-3 text-center text-muted-foreground w-[14%]">{inv.name}</td>
 
-                  <td className="py-3 text-center w-[8%]">{inv.shares}</td>
-                  <td className="py-3 text-center w-[10%]">${inv.current.toLocaleString()}</td>
-                  <td className="py-3 text-center w-[10%]">${inv.avg.toLocaleString()}</td>
-                  <td className="py-3 text-center w-[10%]">${inv.book.toLocaleString()}</td>
+                    {/* Sparkline */}
+                    <td className="py-3 text-center w-[8%]">
+                      {detail ? (
+                        <Sparkline
+                          data={detail.sparkline}
+                          positive={isPositive}
+                        />
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground">N/A</span>
+                      )}
+                    </td>
 
-                  <td className="py-3 text-center font-semibold w-[10%]">
-                    ${inv.market.toLocaleString()}
-                  </td>
+                    {/* Day Range */}
+                    <td className="py-3 text-center w-[12%]">
+                      {detail && detail.dayLow > 0 ? (
+                        <RangeBar
+                          low={detail.dayLow}
+                          high={detail.dayHigh}
+                          current={detail.price}
+                          positive={isPositive}
+                        />
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground">N/A</span>
+                      )}
+                    </td>
 
-                  <td className="py-3 text-center w-[10%]">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-semibold ${
-                        inv.positive
-                          ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
-                          : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-400"
-                      }`}
-                    >
-                      {inv.positive ? "+" : ""}
-                      ${Math.abs(inv.gain).toLocaleString()}
-                    </span>
-                  </td>
+                    {/* 52W Range */}
+                    <td className="py-3 text-center w-[12%]">
+                      {detail && detail.week52Low > 0 ? (
+                        <RangeBar
+                          low={detail.week52Low}
+                          high={detail.week52High}
+                          current={detail.price}
+                          positive={isPositive}
+                        />
+                      ) : (
+                        <span className="text-[10px] text-muted-foreground">N/A</span>
+                      )}
+                    </td>
 
-                  <td className="py-3 text-center w-[10%]">
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-semibold ${
-                        inv.gainPct >= 0
-                          ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
-                          : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-400"
-                      }`}
-                    >
-                      {inv.gainPct.toFixed(2)}%
-                    </span>
-                  </td>
+                    <td className="py-3 text-center w-[6%]">{inv.shares}</td>
+                    <td className="py-3 text-center w-[7%]">${inv.current.toLocaleString()}</td>
+                    <td className="py-3 text-center w-[7%]">${inv.avg.toLocaleString()}</td>
+                    <td className="py-3 text-center w-[7%]">${inv.book.toLocaleString()}</td>
 
-                  <td className="py-3 text-center w-[8%]">
-                    <div className="flex justify-center">
-                      <InvestmentActions
-                        id={inv.id}
-                        name={inv.name}
-                        symbol={inv.symbol}
-                        shares={inv.shares}
-                        purchasePrice={inv.avg}
-                        currentPrice={inv.current}
-                        purchaseDate={inv.purchase_date}
-                        portfolio={inv.portfolio}
-                        portfolios={portfolios}
-                        onSuccess={onRefresh}
-                      />
-                    </div>
-                  </td>
+                    <td className="py-3 text-center font-semibold w-[7%]">
+                      ${inv.market.toLocaleString()}
+                    </td>
 
-                </tr>
-              ))}
+                    <td className="py-3 text-center w-[7%]">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-semibold ${
+                          inv.positive
+                            ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
+                            : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-400"
+                        }`}
+                      >
+                        {inv.positive ? "+" : ""}
+                        ${Math.abs(inv.gain).toLocaleString()}
+                      </span>
+                    </td>
+
+                    <td className="py-3 text-center w-[7%]">
+                      <span
+                        className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-sm font-semibold ${
+                          inv.gainPct >= 0
+                            ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
+                            : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-400"
+                        }`}
+                      >
+                        {inv.gainPct.toFixed(2)}%
+                      </span>
+                    </td>
+
+                    <td className="py-3 text-center w-[6%]">
+                      <div className="flex justify-center">
+                        <InvestmentActions
+                          id={inv.id}
+                          name={inv.name}
+                          symbol={inv.symbol}
+                          shares={inv.shares}
+                          purchasePrice={inv.avg}
+                          currentPrice={inv.current}
+                          purchaseDate={inv.purchase_date}
+                          portfolio={inv.portfolio}
+                          portfolios={portfolios}
+                          onSuccess={onRefresh}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
-
           </table>
 
           {!sorted.length && (

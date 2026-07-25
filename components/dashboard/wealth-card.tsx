@@ -46,9 +46,10 @@ export default function WealthCard({
         border
         border-border
         card-hover
-        ${
-          featured
-            ? `
+        h-full
+        flex flex-col
+        ${featured
+          ? `
               bg-gradient-to-br
               from-card
               via-card
@@ -57,7 +58,7 @@ export default function WealthCard({
               hover:shadow-xl
               hover:border-primary/20
             `
-            : `
+          : `
               bg-card
               shadow-sm
               hover:shadow-md
@@ -67,9 +68,9 @@ export default function WealthCard({
       `}
     >
 
-      <div className="flex items-start justify-between">
+      <div className="flex items-start justify-between flex-1">
 
-        <div>
+        <div className="flex flex-col h-full">
 
           <p className="text-sm text-muted-foreground font-medium">
             {title}
@@ -89,7 +90,7 @@ export default function WealthCard({
 
 
           {change && (
-            <div className="mt-3 flex items-center gap-1 text-sm text-green-600">
+            <div className="mt-auto pt-3 flex items-center gap-1 text-sm text-green-600">
               <TrendingUp size={16} />
 
               <span>
@@ -97,6 +98,9 @@ export default function WealthCard({
               </span>
             </div>
           )}
+
+          {/* Spacer to keep non-change cards at same height */}
+          {!change && !featured && <div className="mt-auto pt-3 invisible">_</div>}
 
         </div>
 
@@ -111,9 +115,7 @@ export default function WealthCard({
             rounded-xl
             bg-muted
             shadow-sm
-            transition-all
-            duration-200
-            group-hover:scale-110
+            shrink-0
           "
         >
           <Icon

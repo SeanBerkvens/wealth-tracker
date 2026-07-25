@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 
 type SourceTable = "accounts" | "portfolios";
 
@@ -24,6 +24,7 @@ export default function SyncedItem({
   liability?: boolean;
 }) {
   const router = useRouter();
+  const supabase = createClient();
   const [ignored, setIgnored] = useState(isIgnored);
 
   async function toggleIgnored() {

@@ -1,12 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/auth/auth-provider";
 
 
 export default function AddAccountForm() {
   const { user } = useAuth();
+  const supabase = createClient();
 
   const [open, setOpen] = useState(false);
 

@@ -10,6 +10,18 @@ export interface StockQuote {
   changePercent: number;
 }
 
+export interface StockQuoteDetails {
+  price: number;
+  change: number;
+  changePercent: number;
+  dayLow: number;
+  dayHigh: number;
+  week52Low: number;
+  week52High: number;
+  sparkline: number[];
+  positive: boolean;
+}
+
 export async function getStockPrice(symbol: string) {
   const quote = await yahooFinance.quote(symbol);
 
@@ -27,6 +39,40 @@ export async function getStockQuote(symbol: string): Promise<StockQuote> {
     price: quote.regularMarketPrice ?? 0,
     change: quote.regularMarketChange ?? 0,
     changePercent: quote.regularMarketChangePercent ?? 0,
+  };
+}
+
+export async function getStockQuoteDetails(symbol: string): Promise<StockQuoteDetails> {
+  const quote = await yahooFinance.quote(symbol);
+
+  const price = quote.regularMarketPrice ?? 0;
+  const change = quote.regularMarketChange ?? 0;
+  const changePercent = quote.regularMarketChangePercent ?? 0;
+
+  // Fetch intraday sparkline data
+  let sparkline: number[] = [];
+  try {
+    const now = new Date();
+    const { start, end } = getTradingSessionBounds(now);
+    const history = await getHistoricalPrices(symbol, start, end, {
+      intraday: true,
+      interval: "5m",
+    });
+    sparkline = history.map((h) => h.close);
+  } catch {
+    // Sparkline data is optional
+  }
+
+  return {
+    price,
+    change,
+    changePercent,
+    dayLow: quote.regularMarketDayLow ?? 0,
+    dayHigh: quote.regularMarketDayHigh ?? 0,
+    week52Low: quote.fiftyTwoWeekLow ?? 0,
+    week52High: quote.fiftyTwoWeekHigh ?? 0,
+    sparkline,
+    positive: change >= 0,
   };
 }
 

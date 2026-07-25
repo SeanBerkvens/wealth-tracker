@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 
 
 interface InvestmentActionsProps {
@@ -32,6 +32,7 @@ export default function InvestmentActions({
 }: InvestmentActionsProps) {
 
 
+  const supabase = createClient();
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
 

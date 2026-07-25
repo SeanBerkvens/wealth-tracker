@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 
 export default function UnassignedInvestmentsItem({ value, isIgnored }: { value: number; isIgnored: boolean }) {
   const router = useRouter();
+  const supabase = createClient();
   const [ignored, setIgnored] = useState(isIgnored);
 
   async function toggleIgnored() {

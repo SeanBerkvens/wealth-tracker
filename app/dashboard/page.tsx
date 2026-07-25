@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import WealthCard from "@/components/dashboard/wealth-card";
-import { NetWorthChart } from "@/components/dashboard/net-worth-chart";
 import { AssetAllocation } from "@/components/dashboard/asset-allocation";
 import { RecentTransactions } from "@/components/dashboard/recent-transactions";
+import PortfolioPerformance from "@/components/dashboard/portfolio-performance";
+import TopHoldings from "@/components/dashboard/top-holdings";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function DashboardPage() {
@@ -25,12 +26,14 @@ export default async function DashboardPage() {
     { data: liabilities },
     { data: investments },
     { data: portfolios },
+    { data: transactions },
   ] = await Promise.all([
     supabase.from("accounts").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
     supabase.from("assets").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
     supabase.from("liabilities").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
     supabase.from("investments").select("*").eq("user_id", userId).order("created_at", { ascending: false }),
     supabase.from("portfolios").select("id, name, is_ignored").eq("user_id", userId).order("name", { ascending: true }),
+    supabase.from("transactions").select("*").eq("user_id", userId).order("date", { ascending: false }).limit(5),
   ]);
 
   const cashBalance =
@@ -93,19 +96,45 @@ export default async function DashboardPage() {
 
   const netWorth = totalAssets - totalLiabilities;
 
-  const { data: history } = await supabase
-    .from("net_worth_history")
-    .select("*")
-    .eq("user_id", userId)
-    .order("date");
-
+  // Build granular allocation data
   const allocationData = [
     { name: "Investments", value: totalInvestments },
-    { name: "Real Estate", value: totalManualAssets },
+    { name: "Manual Assets", value: totalManualAssets },
     { name: "Cash", value: cashBalance },
   ];
 
- 
+  // Build detailed breakdown
+  const allocationDetails = [
+    { name: "Investments", value: totalInvestments },
+    ...(portfolios ?? []).map((p) => ({
+      name: `  ${p.name}`,
+      value: portfolioAssets.find((pa) => pa.id === p.id)?.value ?? 0,
+    })),
+    { name: "Manual Assets", value: totalManualAssets },
+    ...(assets ?? [])
+      .filter((a) => !a.is_ignored)
+      .map((a) => ({
+        name: `  ${a.name}`,
+        value: Number(a.value),
+      })),
+    { name: "Cash", value: cashBalance },
+    ...(accounts ?? [])
+      .filter((a) => Number(a.balance) >= 0 && !a.is_ignored)
+      .map((a) => ({
+        name: `  ${a.name}`,
+        value: Number(a.balance),
+      })),
+  ].filter((item) => item.value > 0);
+
+  // Build top holdings data
+  const topHoldings = (investments ?? [])
+    .filter((inv) => !inv.is_ignored)
+    .map((inv) => ({
+      symbol: inv.symbol,
+      name: inv.name,
+      value: Number(inv.value),
+    }));
+
   return (
     <div className="space-y-10">
 
@@ -127,7 +156,7 @@ export default async function DashboardPage() {
 
 
       <p className="mt-2 text-muted-foreground text-lg">
-        Here&apos;s your financial overview
+        Here's your financial overview
       </p>
 
 
@@ -178,7 +207,7 @@ export default async function DashboardPage() {
     />
   </Link>
 
-  <Link href="/investments" className="block">
+  <Link href="/investments" className="block h-full">
     <WealthCard
       title="Investments"
       value={`$${totalInvestments.toLocaleString()}`}
@@ -193,12 +222,20 @@ export default async function DashboardPage() {
       {/* Dashboard Sections */}
       <div className="grid gap-6">
 
-        <NetWorthChart data={history ?? []} />
+        {/* Portfolio Performance */}
+        <PortfolioPerformance />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <AssetAllocation data={allocationData} />
-          <RecentTransactions />
+        {/* Charts Row */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <AssetAllocation
+            data={allocationData}
+            details={allocationDetails}
+          />
+          <TopHoldings holdings={topHoldings} />
         </div>
+
+        {/* Recent Transactions */}
+        <RecentTransactions transactions={transactions ?? []} />
 
       </div>
 

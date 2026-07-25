@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import InvestmentsTable from "@/components/investments/investments-table";
 
 type Investment = {
@@ -19,6 +19,7 @@ type Investment = {
 export default function WatchlistPage() {
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const supabase = createClient();
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {

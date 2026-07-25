@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/server";
 import { getStockPrice } from "@/lib/yahoo";
 
 
 export async function POST() {
 
+  const supabase = await createClient();
 
   const { data: investments } =
     await supabase

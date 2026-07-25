@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 
 interface LiabilityActionsProps {
@@ -15,6 +15,7 @@ interface LiabilityActionsProps {
 
 export default function LiabilityActions({ id, name, category, value, isIgnored, onIgnoredChange }: LiabilityActionsProps) {
   const router = useRouter();
+  const supabase = createClient();
   const [editing, setEditing] = useState(false);
   const [newName, setNewName] = useState(name);
   const [newCategory, setNewCategory] = useState(category);
