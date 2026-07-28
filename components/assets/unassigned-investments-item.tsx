@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { Eye, EyeOff } from "lucide-react";
 
 export default function UnassignedInvestmentsItem({ value, isIgnored }: { value: number; isIgnored: boolean }) {
   const router = useRouter();
@@ -31,12 +32,12 @@ export default function UnassignedInvestmentsItem({ value, isIgnored }: { value:
           <p className="mt-1 text-sm text-muted-foreground">Synced from your investments{ignored ? " · Ignored from calculations" : ""}</p>
         </div>
         <div className="flex items-center gap-3">
-          <button onClick={toggleIgnored} className="rounded-lg bg-muted/70 px-3 py-1 text-sm text-muted-foreground hover:bg-muted hover:text-foreground btn-press">
-            {ignored ? "Include" : "Ignore"}
-          </button>
-          <p className={`text-lg font-semibold transition-colors duration-300 ${ignored ? "text-zinc-600 dark:text-zinc-500" : "text-emerald-600 dark:text-emerald-400"}`}>
+          <p className={`whitespace-nowrap text-lg font-semibold transition-colors duration-300 ${ignored ? "text-zinc-600 dark:text-zinc-500" : "text-emerald-600 dark:text-emerald-400"}`}>
             ${value.toLocaleString()}
           </p>
+          <button type="button" onClick={toggleIgnored} title={ignored ? "Include in calculations" : "Ignore from calculations"} className="rounded-lg p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground btn-press">
+            {ignored ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+          </button>
         </div>
       </div>
     </div>

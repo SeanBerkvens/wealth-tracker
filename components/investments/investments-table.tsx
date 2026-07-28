@@ -1,9 +1,11 @@
 "use client";
 
-import { useMemo, useState, useEffect, useRef } from "react";
+import { Fragment, useMemo, useState, useEffect, useRef } from "react";
 import InvestmentActions from "@/components/investments/investment-actions";
+import HoldingTransactions from "@/components/investments/holding-transactions";
 import Sparkline from "@/components/investments/sparkline";
 import RangeBar from "@/components/investments/range-bar";
+import { ChevronDown } from "lucide-react";
 
 type Investment = {
   id: string;
@@ -100,6 +102,8 @@ export default function InvestmentsTable({
   const [sortKey, setSortKey] = useState<SortKey>("market");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
   const [stockDetails, setStockDetails] = useState<Map<string, StockDetail>>(new Map());
+  const [logos, setLogos] = useState<Map<string, string>>(new Map());
+  const [expandedInvestmentId, setExpandedInvestmentId] = useState<string | null>(null);
   const fetchIdRef = useRef(0);
 
   const enriched = useMemo(() => {
@@ -129,6 +133,16 @@ export default function InvestmentsTable({
         portfolio: inv.portfolio,
       };
     });
+  }, [investments]);
+
+  useEffect(() => {
+    const symbols = [...new Set((investments ?? []).map((inv) => inv.symbol))];
+    if (symbols.length === 0) return;
+
+    fetch(`/api/stocks/logos?symbols=${encodeURIComponent(symbols.join(","))}`)
+      .then((response) => response.json())
+      .then((data) => setLogos(new Map(Object.entries(data?.logos ?? {}))))
+      .catch(() => setLogos(new Map()));
   }, [investments]);
 
   // Fetch stock details for all symbols
@@ -253,9 +267,11 @@ export default function InvestmentsTable({
                 const detail = getDetail(inv.symbol);
                 const isPositive = detail ? detail.positive : inv.positive;
 
+                const isExpanded = expandedInvestmentId === inv.id;
+
                 return (
-                  <tr
-                    key={inv.id}
+                  <Fragment key={inv.id}>
+                    <tr
                     className="border-b border-border last:border-none hover:bg-muted/40 transition-colors"
                   >
                     {showPortfolio && (
@@ -263,7 +279,25 @@ export default function InvestmentsTable({
                         {inv.portfolio || "Unassigned"}
                       </td>
                     )}
-                    <td className="py-3 text-center font-semibold w-[7%]">{inv.symbol}</td>
+                    <td className="py-3 text-center font-semibold w-[7%]">
+                      <div className="inline-flex items-center justify-center gap-1">
+                        {logos.get(inv.symbol) ? (
+                          <img src={logos.get(inv.symbol)} alt="" className="h-5 w-5 rounded-sm object-contain" onError={(event) => { event.currentTarget.style.display = "none"; }} />
+                        ) : (
+                          <span className="inline-flex h-5 w-5 items-center justify-center rounded-sm bg-muted text-[9px] text-muted-foreground">{inv.symbol.slice(0, 1)}</span>
+                        )}
+                        <span>{inv.symbol}</span>
+                        <button
+                          type="button"
+                          onClick={() => setExpandedInvestmentId(isExpanded ? null : inv.id)}
+                          aria-expanded={isExpanded}
+                          aria-label={`${isExpanded ? "Hide" : "Show"} ${inv.symbol} transactions`}
+                          className="inline-flex items-center text-muted-foreground hover:text-foreground"
+                        >
+                          <ChevronDown className={`h-4 w-4 shrink-0 transition-all duration-300 ${isExpanded ? "rotate-0" : "-rotate-90"}`} />
+                        </button>
+                      </div>
+                    </td>
                     <td className="py-3 text-center text-muted-foreground w-[12%] truncate max-w-0" title={inv.name}>
                       {inv.name}
                     </td>
@@ -358,7 +392,16 @@ export default function InvestmentsTable({
                         />
                       </div>
                     </td>
-                  </tr>
+                    </tr>
+                    {isExpanded && (
+                      <HoldingTransactions
+                        investmentId={inv.id}
+                        symbol={inv.symbol}
+                        columnCount={showPortfolio ? 14 : 13}
+                        onSuccess={onRefresh}
+                      />
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>

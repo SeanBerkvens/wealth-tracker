@@ -4,6 +4,7 @@ import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/auth-provider";
+import { AssetIcon, assetIconOptions, iconColorOptions } from "@/components/assets/asset-icon";
 
 
 export default function AddAssetForm({ compact = false }: { compact?: boolean }) {
@@ -16,6 +17,8 @@ export default function AddAssetForm({ compact = false }: { compact?: boolean })
   const [name, setName] = useState("");
   const [category, setCategory] = useState("");
   const [value, setValue] = useState("");
+  const [icon, setIcon] = useState("wallet");
+  const [iconColor, setIconColor] = useState("#06b6d4");
 
 
   async function handleSubmit(
@@ -32,6 +35,8 @@ export default function AddAssetForm({ compact = false }: { compact?: boolean })
         name,
         category,
         value: Number(value),
+        icon,
+        icon_color: iconColor,
         user_id: user.id,
       });
 
@@ -45,6 +50,8 @@ export default function AddAssetForm({ compact = false }: { compact?: boolean })
     setName("");
     setCategory("");
     setValue("");
+    setIcon("wallet");
+    setIconColor("#06b6d4");
 
     setOpen(false);
 
@@ -146,6 +153,18 @@ export default function AddAssetForm({ compact = false }: { compact?: boolean })
                 p-3
               "
             />
+
+            <div>
+              <p className="mb-2 text-sm font-medium">Asset icon</p>
+              <div className="grid grid-cols-4 gap-2">
+                {assetIconOptions.map((option) => (
+                  <button key={option.value} type="button" onClick={() => setIcon(option.value)} title={option.label} className={`flex flex-col items-center gap-1 rounded-lg border p-2 text-xs ${icon === option.value ? "border-primary bg-primary/10 text-primary" : "border-border hover:bg-muted"}`}>
+                    <AssetIcon name={option.value} />{option.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div><p className="mb-2 text-sm font-medium">Icon color</p><div className="flex flex-wrap gap-2">{iconColorOptions.map((color) => <button key={color} type="button" onClick={() => setIconColor(color)} aria-label={`Use ${color}`} className={`h-7 w-7 rounded-full border-2 ${iconColor === color ? "border-foreground" : "border-transparent"}`} style={{ backgroundColor: color }} />)}</div></div>
 
 
             <div className="flex justify-end gap-3">

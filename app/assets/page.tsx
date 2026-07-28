@@ -29,8 +29,8 @@ export default async function AssetsPage() {
       .eq("user_id", userId)
       .order("created_at", { ascending: false }),
     supabase.from("investments").select("portfolio, value, is_ignored").eq("user_id", userId),
-    supabase.from("portfolios").select("id, name, is_ignored").eq("user_id", userId).order("name", { ascending: true }),
-    supabase.from("accounts").select("id, name, type, balance, is_ignored").eq("user_id", userId).order("created_at", { ascending: false }),
+    supabase.from("portfolios").select("id, name, is_ignored, icon, icon_color").eq("user_id", userId).order("name", { ascending: true }),
+    supabase.from("accounts").select("id, name, type, balance, is_ignored, icon, icon_color").eq("user_id", userId).order("created_at", { ascending: false }),
   ]);
 
   const totalManualAssets =
@@ -39,6 +39,8 @@ export default async function AssetsPage() {
     id: portfolio.id,
     name: portfolio.name,
     isIgnored: portfolio.is_ignored,
+    icon: portfolio.icon,
+    icon_color: portfolio.icon_color,
     value:
       investments
         ?.filter((investment) => investment.portfolio === portfolio.name && !investment.is_ignored)
@@ -124,6 +126,8 @@ export default async function AssetsPage() {
                 description="Synced from your investments"
                 value={portfolio.value}
                 isIgnored={portfolio.isIgnored ?? false}
+                icon={portfolio.icon}
+                iconColor={portfolio.icon_color}
               />
             ))}
             {hasUnassignedInvestments && (
@@ -138,6 +142,8 @@ export default async function AssetsPage() {
                 description={`${account.type} account · Synced from your accounts`}
                 value={Number(account.balance)}
                 isIgnored={account.is_ignored ?? false}
+                icon={account.icon}
+                iconColor={account.icon_color}
               />
             ))}
             {assets?.map((asset) => <AssetItem key={asset.id} asset={asset} />)}
@@ -164,6 +170,8 @@ export default async function AssetsPage() {
                 value={Math.abs(Number(account.balance))}
                 isIgnored={account.is_ignored ?? false}
                 liability
+                icon={account.icon}
+                iconColor={account.icon_color}
               />
             ))}
             {liabilities?.map((liability) => <LiabilityItem key={liability.id} liability={liability} />)}

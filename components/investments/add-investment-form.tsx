@@ -90,6 +90,97 @@ export default function AddInvestmentForm({
 
     if (!user) return;
 
+    let holdingQuery = supabase
+      .from("investments")
+      .select("id")
+      .eq("symbol", selected.symbol)
+      .eq("user_id", user.id);
+
+    holdingQuery = portfolio
+      ? holdingQuery.eq("portfolio", portfolio)
+      : holdingQuery.is("portfolio", null);
+
+    const { data: existingHolding, error: holdingError } = await holdingQuery.maybeSingle();
+    if (holdingError) {
+      setStatusMessage(`Failed to find the holding: ${holdingError.message}`);
+      return;
+    }
+
+    if (transactionType === "sell" && !existingHolding) {
+      setStatusMessage("Cannot sell a position that doesn't exist in this portfolio.");
+      return;
+    }
+
+    let holdingId = existingHolding?.id;
+    let createdHoldingId: string | null = null;
+
+    if (!holdingId) {
+      let currentPrice = priceNum;
+      try {
+        const res = await fetch(`/api/stocks/price?symbol=${encodeURIComponent(selected.symbol)}`);
+        const data = await res.json();
+        if (data?.price && data.price > 0) currentPrice = data.price;
+      } catch {
+        // The entered purchase price is a safe fallback for a new holding.
+      }
+
+      const { data: createdHolding, error: createError } = await supabase
+        .from("investments")
+        .insert({
+          name: selected.name,
+          symbol: selected.symbol,
+          shares: 0,
+          purchase_price: priceNum,
+          current_price: currentPrice,
+          value: 0,
+          purchase_date: transactionDate,
+          portfolio: portfolio || null,
+          user_id: user.id,
+        })
+        .select("id")
+        .single();
+
+      if (createError || !createdHolding) {
+        setStatusMessage(`Failed to create holding: ${createError?.message || "Unknown error"}`);
+        return;
+      }
+
+      holdingId = createdHolding.id;
+      createdHoldingId = createdHolding.id;
+    }
+
+    const { error: ledgerError } = await supabase.from("transactions").insert({
+      investment_id: holdingId,
+      symbol: selected.symbol,
+      name: selected.name,
+      shares: sharesNum,
+      price: priceNum,
+      type: transactionType,
+      date: transactionDate,
+      portfolio: portfolio || null,
+      commission: 0,
+      user_id: user.id,
+    });
+
+    if (ledgerError) {
+      if (createdHoldingId) await supabase.from("investments").delete().eq("id", createdHoldingId);
+      setStatusMessage(`Failed to record transaction: ${ledgerError.message || "Unknown error"}`);
+      return;
+    }
+
+    setOpen(false);
+    setQuery("");
+    setResults([]);
+    setSelected(null);
+    setShares("");
+    setPrice("");
+    setTransactionDate(new Date().toISOString().split("T")[0]);
+    setTransactionType("buy");
+    setPortfolio("");
+    onSuccess?.();
+    return;
+
+    /* Legacy aggregate mutation path. Transactions are now the source of truth.
     // 1. Record the transaction
     const { error: txError } = await supabase.from("transactions").insert({
       symbol: selected.symbol,
@@ -116,6 +207,7 @@ export default function AddInvestmentForm({
       .from("investments")
       .select("*")
       .eq("symbol", selected.symbol)
+      .eq("user_id", user.id)
       .maybeSingle();
 
     if (transactionType === "buy") {
@@ -217,6 +309,8 @@ export default function AddInvestmentForm({
         }
       }
     }
+
+    */
 
     // Reset form
     setOpen(false);
