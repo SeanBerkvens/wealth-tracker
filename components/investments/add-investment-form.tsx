@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/auth/auth-provider";
 
@@ -19,30 +19,32 @@ export default function AddInvestmentForm({
   const { user } = useAuth();
   const supabase = createClient();
   const [open, setOpen] = useState(false);
-
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Stock[]>([]);
   const [selected, setSelected] = useState<Stock | null>(null);
-
-  const [shares, setShares] = useState("");
-  const [price, setPrice] = useState("");
-  const [transactionType, setTransactionType] = useState<"buy" | "sell">("buy");
-  const [transactionDate, setTransactionDate] = useState(
-    new Date().toISOString().split("T")[0]
-  );
   const [portfolio, setPortfolio] = useState("");
-
+  const [saving, setSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+  const resetForm = () => {
+    setQuery("");
+    setResults([]);
+    setSelected(null);
+    setPortfolio("");
+    setStatusMessage(null);
+  };
+
+  const closeModal = () => {
+    setOpen(false);
+    resetForm();
+  };
 
   const searchStocks = (value: string) => {
     setQuery(value);
+    setSelected(null);
 
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-    }
-
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!value.trim()) {
       setResults([]);
       return;
@@ -50,18 +52,11 @@ export default function AddInvestmentForm({
 
     debounceRef.current = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/stocks/search?q=${encodeURIComponent(value)}`);
-
-        if (!res.ok) {
-          console.error("API error:", res.status);
-          setResults([]);
-          return;
-        }
-
-        const data = await res.json();
+        const response = await fetch(`/api/stocks/search?q=${encodeURIComponent(value)}`);
+        if (!response.ok) throw new Error("Search failed");
+        const data = await response.json();
         setResults(Array.isArray(data) ? data : []);
-      } catch (err) {
-        console.error("Search failed:", err);
+      } catch {
         setResults([]);
       }
     }, 250);
@@ -73,413 +68,154 @@ export default function AddInvestmentForm({
     setResults([]);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!user || !selected || saving) return;
 
-    if (!selected || !shares || !price) return;
-
-    const sharesNum = Number(shares);
-    const priceNum = Number(price);
-
-    if (isNaN(sharesNum) || isNaN(priceNum) || sharesNum <= 0) {
-      console.error("Invalid input");
-      return;
-    }
-
+    setSaving(true);
     setStatusMessage(null);
 
-    if (!user) return;
-
-    let holdingQuery = supabase
+    let existingHoldingQuery = supabase
       .from("investments")
       .select("id")
       .eq("symbol", selected.symbol)
       .eq("user_id", user.id);
 
-    holdingQuery = portfolio
-      ? holdingQuery.eq("portfolio", portfolio)
-      : holdingQuery.is("portfolio", null);
+    existingHoldingQuery = portfolio
+      ? existingHoldingQuery.eq("portfolio", portfolio)
+      : existingHoldingQuery.is("portfolio", null);
 
-    const { data: existingHolding, error: holdingError } = await holdingQuery.maybeSingle();
-    if (holdingError) {
-      setStatusMessage(`Failed to find the holding: ${holdingError.message}`);
+    const { data: existingHolding, error: lookupError } = await existingHoldingQuery.maybeSingle();
+    if (lookupError) {
+      setStatusMessage(`Failed to find the holding: ${lookupError.message}`);
+      setSaving(false);
       return;
     }
 
-    if (transactionType === "sell" && !existingHolding) {
-      setStatusMessage("Cannot sell a position that doesn't exist in this portfolio.");
+    if (existingHolding) {
+      setStatusMessage("This holding already exists in the selected portfolio.");
+      setSaving(false);
       return;
     }
 
-    let holdingId = existingHolding?.id;
-    let createdHoldingId: string | null = null;
-
-    if (!holdingId) {
-      let currentPrice = priceNum;
-      try {
-        const res = await fetch(`/api/stocks/price?symbol=${encodeURIComponent(selected.symbol)}`);
-        const data = await res.json();
-        if (data?.price && data.price > 0) currentPrice = data.price;
-      } catch {
-        // The entered purchase price is a safe fallback for a new holding.
-      }
-
-      const { data: createdHolding, error: createError } = await supabase
-        .from("investments")
-        .insert({
-          name: selected.name,
-          symbol: selected.symbol,
-          shares: 0,
-          purchase_price: priceNum,
-          current_price: currentPrice,
-          value: 0,
-          purchase_date: transactionDate,
-          portfolio: portfolio || null,
-          user_id: user.id,
-        })
-        .select("id")
-        .single();
-
-      if (createError || !createdHolding) {
-        setStatusMessage(`Failed to create holding: ${createError?.message || "Unknown error"}`);
-        return;
-      }
-
-      holdingId = createdHolding.id;
-      createdHoldingId = createdHolding.id;
+    let currentPrice = 0;
+    try {
+      const response = await fetch(`/api/stocks/price?symbol=${encodeURIComponent(selected.symbol)}`);
+      const data = await response.json();
+      if (Number(data?.price) > 0) currentPrice = Number(data.price);
+    } catch {
+      // A holding can still be created when a quote is temporarily unavailable.
     }
 
-    const { error: ledgerError } = await supabase.from("transactions").insert({
-      investment_id: holdingId,
-      symbol: selected.symbol,
+    const { error } = await supabase.from("investments").insert({
       name: selected.name,
-      shares: sharesNum,
-      price: priceNum,
-      type: transactionType,
-      date: transactionDate,
-      portfolio: portfolio || null,
-      commission: 0,
-      user_id: user.id,
-    });
-
-    if (ledgerError) {
-      if (createdHoldingId) await supabase.from("investments").delete().eq("id", createdHoldingId);
-      setStatusMessage(`Failed to record transaction: ${ledgerError.message || "Unknown error"}`);
-      return;
-    }
-
-    setOpen(false);
-    setQuery("");
-    setResults([]);
-    setSelected(null);
-    setShares("");
-    setPrice("");
-    setTransactionDate(new Date().toISOString().split("T")[0]);
-    setTransactionType("buy");
-    setPortfolio("");
-    onSuccess?.();
-    return;
-
-    /* Legacy aggregate mutation path. Transactions are now the source of truth.
-    // 1. Record the transaction
-    const { error: txError } = await supabase.from("transactions").insert({
       symbol: selected.symbol,
-      name: selected.name,
-      shares: sharesNum,
-      price: priceNum,
-      type: transactionType,
-      date: transactionDate,
+      shares: 0,
+      purchase_price: 0,
+      current_price: currentPrice,
+      value: 0,
+      purchase_date: new Date().toISOString().slice(0, 10),
       portfolio: portfolio || null,
       user_id: user.id,
     });
 
-    if (txError) {
-      console.error("Transaction error:", txError);
-      console.error("Transaction error message:", txError.message);
-      console.error("Transaction error details:", txError.details);
-      console.error("Transaction error hint:", txError.hint);
-      setStatusMessage(`Failed to record transaction: ${txError.message || "Unknown error"}`);
+    if (error) {
+      setStatusMessage(`Failed to create holding: ${error.message}`);
+      setSaving(false);
       return;
     }
 
-    // 2. Check if this symbol already exists in investments
-    const { data: existing } = await supabase
-      .from("investments")
-      .select("*")
-      .eq("symbol", selected.symbol)
-      .eq("user_id", user.id)
-      .maybeSingle();
-
-    if (transactionType === "buy") {
-      // Fetch current price
-      let currentPrice = null;
-      try {
-        const res = await fetch(`/api/stocks/price?symbol=${encodeURIComponent(selected.symbol)}`);
-        const data = await res.json();
-        if (data?.price && data.price > 0) {
-          currentPrice = data.price;
-        }
-      } catch (err) {
-        console.error("Failed to fetch current price:", err);
-      }
-
-      if (existing) {
-        // BUY + existing symbol → update shares and recalculate average price
-        const newShares = Number(existing.shares) + sharesNum;
-        const totalCost = Number(existing.shares) * Number(existing.purchase_price) + sharesNum * priceNum;
-        const newAvgPrice = totalCost / newShares;
-
-        const { error: updateError } = await supabase
-          .from("investments")
-          .update({
-            shares: newShares,
-            purchase_price: newAvgPrice,
-            current_price: currentPrice,
-            value: newShares * (currentPrice || newAvgPrice),
-            portfolio: portfolio || existing.portfolio || null,
-          })
-          .eq("id", existing.id);
-
-        if (updateError) {
-          console.error("Update error:", updateError);
-          setStatusMessage("Transaction recorded but failed to update position.");
-          return;
-        }
-      } else {
-        // BUY + new symbol → insert new row
-        const { error: insertError } = await supabase.from("investments").insert({
-          name: selected.name,
-          symbol: selected.symbol,
-          shares: sharesNum,
-          purchase_price: priceNum,
-          current_price: currentPrice,
-          value: currentPrice ? sharesNum * currentPrice : sharesNum * priceNum,
-          purchase_date: transactionDate,
-          portfolio: portfolio || null,
-          user_id: user.id,
-        });
-
-        if (insertError) {
-          console.error("Insert error:", insertError);
-          console.error("Insert error message:", insertError.message);
-          console.error("Insert error details:", insertError.details);
-          console.error("Insert error hint:", insertError.hint);
-          setStatusMessage(`Transaction recorded but failed to create position: ${insertError.message || "Unknown error"}`);
-          return;
-        }
-      }
-    } else {
-      // SELL
-      if (!existing) {
-        setStatusMessage("Cannot sell a position that doesn't exist.");
-        return;
-      }
-
-      const currentShares = Number(existing.shares);
-      const newShares = currentShares - sharesNum;
-
-      if (newShares <= 0) {
-        // Position closed → delete the row
-        const { error: deleteError } = await supabase
-          .from("investments")
-          .delete()
-          .eq("id", existing.id);
-
-        if (deleteError) {
-          console.error("Delete error:", deleteError);
-          setStatusMessage("Transaction recorded but failed to close position.");
-          return;
-        }
-
-        setStatusMessage(`Position closed for ${selected.symbol}.`);
-      } else {
-        // Partial sell → update shares only (avg price stays the same)
-        const { error: updateError } = await supabase
-          .from("investments")
-          .update({
-            shares: newShares,
-            value: newShares * Number(existing.current_price || existing.purchase_price),
-          })
-          .eq("id", existing.id);
-
-        if (updateError) {
-          console.error("Update error:", updateError);
-          setStatusMessage("Transaction recorded but failed to update position.");
-          return;
-        }
-      }
-    }
-
-    */
-
-    // Reset form
-    setOpen(false);
-    setQuery("");
-    setResults([]);
-    setSelected(null);
-    setShares("");
-    setPrice("");
-    setTransactionDate(new Date().toISOString().split("T")[0]);
-    setTransactionType("buy");
-    setPortfolio("");
-
+    closeModal();
     onSuccess?.();
+    setSaving(false);
   };
 
   return (
     <div className="relative">
-
-      {/* Button */}
       <button
+        type="button"
         onClick={() => setOpen(true)}
         className="px-4 py-2 rounded-full bg-primary text-primary-foreground hover:opacity-90 transition btn-press"
       >
-        + Transaction
+        + Holding
       </button>
 
-      {/* Modal */}
       {open && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-50 modal-overlay">
-
           <div className="w-full max-w-md p-6 rounded-xl bg-card text-card-foreground border border-border relative modal-content">
-
             <button
-              onClick={() => setOpen(false)}
+              type="button"
+              onClick={closeModal}
               className="absolute top-3 right-3 text-muted-foreground hover:text-foreground"
+              aria-label="Close"
             >
-              ✕
+              ×
             </button>
 
-            <h2 className="text-lg font-semibold mb-4">
-              Add Transaction
-            </h2>
+            <h2 className="text-lg font-semibold mb-1">Add Holding</h2>
+            <p className="mb-4 text-sm text-muted-foreground">
+              You can add transactions for this holding in the table afterwards.
+            </p>
 
             <form onSubmit={handleSubmit} className="space-y-3">
-
-              {/* BUY / SELL TOGGLE */}
-              <div className="flex items-center gap-2 bg-muted rounded-lg p-1">
-                <button
-                  type="button"
-                  onClick={() => setTransactionType("buy")}
-                  className={`flex-1 py-1.5 text-sm rounded-md font-medium transition btn-press ${
-                    transactionType === "buy"
-                      ? "bg-emerald-600 text-white shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Buy
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTransactionType("sell")}
-                  className={`flex-1 py-1.5 text-sm rounded-md font-medium transition btn-press ${
-                    transactionType === "sell"
-                      ? "bg-rose-600 text-white shadow-sm"
-                      : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  Sell
-                </button>
-              </div>
-
-              {/* SEARCH */}
               <input
                 value={query}
-                onChange={(e) => searchStocks(e.target.value)}
+                onChange={(event) => searchStocks(event.target.value)}
                 placeholder="Search stock (AAPL, TSLA...)"
                 className="w-full p-2 border rounded bg-background text-foreground"
               />
 
-              {/* RESULTS */}
               {results.length > 0 && (
-                <div className="border rounded bg-background max-h-40 overflow-y-auto relative z-50">
+                <div className="border rounded bg-background max-h-40 overflow-y-auto">
                   {results.map((stock) => (
-                    <div
+                    <button
                       key={stock.symbol}
+                      type="button"
                       onClick={() => selectStock(stock)}
-                      className="p-2 hover:bg-muted cursor-pointer"
+                      className="block w-full p-2 text-left hover:bg-muted"
                     >
-                      <div className="font-medium">{stock.symbol}</div>
-                      <div className="text-xs text-muted-foreground">
-                        {stock.name}
-                      </div>
-                    </div>
+                      <span className="block font-medium">{stock.symbol}</span>
+                      <span className="block text-xs text-muted-foreground">{stock.name}</span>
+                    </button>
                   ))}
                 </div>
               )}
 
-              {/* SELECTED */}
               {selected && (
-                <div className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Selected: <span className="font-medium">{selected.symbol}</span>
-                </div>
+                </p>
               )}
 
-              {/* SHARES */}
-              <input
-                type="number"
-                step="any"
-                placeholder="Number of Shares"
-                value={shares}
-                onChange={(e) => setShares(e.target.value)}
-                className="w-full p-2 border rounded bg-background text-foreground"
-              />
-
-              {/* PRICE */}
-              <input
-                type="number"
-                step="0.01"
-                placeholder="Price per Share"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                className="w-full p-2 border rounded bg-background text-foreground"
-              />
-
-              {/* DATE */}
-              <label className="text-xs text-muted-foreground block">
-                Transaction Date
-              </label>
-              <input
-                type="date"
-                value={transactionDate}
-                onChange={(e) => setTransactionDate(e.target.value)}
-                className="w-full p-2 border rounded bg-background text-foreground"
-              />
-
-              {/* PORTFOLIO */}
-              <label className="text-xs text-muted-foreground block">
+              <label className="text-xs text-muted-foreground block" htmlFor="holding-portfolio">
                 Portfolio
               </label>
               <select
+                id="holding-portfolio"
                 value={portfolio}
-                onChange={(e) => setPortfolio(e.target.value)}
+                onChange={(event) => setPortfolio(event.target.value)}
                 className="w-full p-2 border rounded bg-background text-foreground"
               >
                 <option value="">No portfolio</option>
-                {portfolios.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
+                {portfolios.map((item) => (
+                  <option key={item} value={item}>{item}</option>
                 ))}
               </select>
 
-              {/* STATUS MESSAGE */}
               {statusMessage && (
                 <p className="text-sm text-amber-600 bg-amber-50 dark:bg-amber-950/30 rounded p-2">
                   {statusMessage}
                 </p>
               )}
 
-              {/* SUBMIT */}
               <button
                 type="submit"
-                className="w-full py-2 rounded bg-primary text-primary-foreground hover:opacity-90 transition btn-press"
+                disabled={!selected || saving}
+                className="w-full py-2 rounded bg-primary text-primary-foreground hover:opacity-90 transition btn-press disabled:opacity-50"
               >
-                {transactionType === "buy" ? "Buy" : "Sell"}
+                {saving ? "Adding..." : "Add Holding"}
               </button>
-
             </form>
-
           </div>
         </div>
       )}

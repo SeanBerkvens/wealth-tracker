@@ -1,8 +1,9 @@
-import { BriefcaseBusiness, Car, CircleDollarSign, Gem, House, Landmark, Package, TrendingUp, Wallet } from "lucide-react";
+import { BriefcaseBusiness, Car, CircleDollarSign, Gem, House, Landmark, Package, Sailboat, TrendingUp, Wallet } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
 export const assetIconOptions: { value: string; label: string; icon: LucideIcon }[] = [
   { value: "house", label: "Home", icon: House }, { value: "car", label: "Vehicle", icon: Car },
+  { value: "boat", label: "Boat", icon: Sailboat },
   { value: "wallet", label: "Cash", icon: Wallet }, { value: "landmark", label: "Bank", icon: Landmark },
   { value: "trending-up", label: "Investment", icon: TrendingUp }, { value: "gem", label: "Valuable", icon: Gem },
   { value: "briefcase", label: "Business", icon: BriefcaseBusiness }, { value: "package", label: "Other", icon: Package },

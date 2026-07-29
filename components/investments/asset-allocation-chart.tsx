@@ -19,11 +19,12 @@ interface AssetAllocationChartProps {
 }
 
 const BASE_COLORS = [
-  "var(--chart-1)",
-  "var(--chart-2)",
-  "var(--chart-3)",
-  "var(--chart-4)",
-  "var(--chart-5)",
+  "#22d3ee",
+  "#fb923c",
+  "#a78bfa",
+  "#4ade80",
+  "#f472b6",
+  "#facc15",
 ];
 
 function colorFor(index: number): string {
@@ -75,17 +76,17 @@ export default function AssetAllocationChart({
       ) : (
         <>
           {/* Donut + Horizontal Stacked Bar — 1:2 ratio */}
-          <div className="grid gap-6 grid-cols-3 h-[541px]">
+          <div className="grid h-[541px] grid-cols-[330px_360px] justify-center gap-6">
             {/* Donut */}
-            <div className="col-span-1">
+            <div>
               <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
                       data={data}
                       dataKey="value"
                       nameKey="name"
-                      innerRadius={55}
-                      outerRadius={90}
+                      innerRadius={100}
+                      outerRadius={165}
                       paddingAngle={3}
                     >
                       {data.map((entry, index) => (
@@ -118,13 +119,13 @@ export default function AssetAllocationChart({
             </div>
 
             {/* Horizontal Stacked Bar — 2x width */}
-            <div className="col-span-2 flex flex-col justify-center h-full">
+            <div className="flex h-full flex-col justify-center">
               <p className="text-sm text-muted-foreground font-medium mb-3">
                 Allocation by value
               </p>
 
               {/* Stacked bar */}
-              <div className="h-5 w-full rounded-full overflow-hidden flex">
+              <div className="flex h-5 w-full max-w-[360px] overflow-hidden rounded-full">
                 {data.map((item, index) => (
                   <div
                     key={item.name}
@@ -138,7 +139,7 @@ export default function AssetAllocationChart({
               </div>
 
               {/* Legend */}
-              <div className="mt-4 space-y-2.5">
+              <div className="mt-4 max-w-[360px] space-y-2.5">
                 {data.slice(0, 5).map((item, index) => (
                   <div
                     key={item.name}
@@ -151,9 +152,9 @@ export default function AssetAllocationChart({
                       />
                       {item.name}
                     </span>
-                    <span className="font-medium text-card-foreground">
-                      {formatCurrency(item.value)}
-                      <span className="ml-2 text-muted-foreground">
+                    <span className="grid grid-cols-[7rem_3.5rem] gap-2 text-right font-medium tabular-nums text-card-foreground">
+                      <span>{formatCurrency(item.value)}</span>
+                      <span className="text-muted-foreground">
                         {((item.value / total) * 100).toFixed(1)}%
                       </span>
                     </span>

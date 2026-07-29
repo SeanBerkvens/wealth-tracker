@@ -40,11 +40,13 @@ export default function HoldingTransactions({
   investmentId,
   symbol,
   columnCount,
+  startNewTransaction = false,
   onSuccess,
 }: {
   investmentId: string;
   symbol: string;
   columnCount: number;
+  startNewTransaction?: boolean;
   onSuccess?: () => void;
 }) {
   const { user } = useAuth();
@@ -53,7 +55,7 @@ export default function HoldingTransactions({
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(startNewTransaction ? "new" : null);
   const [draft, setDraft] = useState<TransactionDraft>(emptyDraft);
 
   const loadTransactions = async () => {
@@ -128,7 +130,7 @@ export default function HoldingTransactions({
       user_id: user.id,
     };
 
-    const { error: saveError } = editingId
+    const { error: saveError } = editingId && editingId !== "new"
       ? await supabase.from("transactions").update(values).eq("id", editingId).eq("user_id", user.id)
       : await supabase.from("transactions").insert({ ...values, symbol });
 

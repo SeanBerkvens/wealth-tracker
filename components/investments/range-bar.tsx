@@ -13,14 +13,14 @@ export default function RangeBar({ low, high, current, positive = true }: RangeB
 
   const color = "var(--primary)";
 
-  const barHeight = 6;
-  const dotSize = 10;
-  const barWidth = 120;
+  const barHeight = 7;
+  const dotSize = 11;
+  const barWidth = 132;
 
   return (
     <div className="inline-flex flex-col items-center gap-1" style={{ width: barWidth }}>
       {/* Labels */}
-      <div className="flex w-full justify-between text-[10px] text-muted-foreground">
+      <div className="flex w-full justify-between text-[11px] text-muted-foreground">
         <span>${low.toLocaleString()}</span>
         <span>${high.toLocaleString()}</span>
       </div>
