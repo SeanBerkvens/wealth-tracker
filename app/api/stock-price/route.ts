@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getStockPrice } from "@/lib/yahoo";
+import { getStockQuote } from "@/lib/yahoo";
 
 
 export async function GET(
@@ -31,15 +31,16 @@ export async function GET(
 
 
 
-    const price =
-      await getStockPrice(
+    const quote =
+      await getStockQuote(
         symbol.toUpperCase()
       );
 
 
 
     return NextResponse.json({
-      price,
+      price: quote.price,
+      currency: quote.currency,
     });
 
 

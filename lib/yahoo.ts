@@ -8,6 +8,8 @@ export interface StockQuote {
   price: number;
   change: number;
   changePercent: number;
+  currency: string;
+  name?: string;
 }
 
 export interface StockQuoteDetails {
@@ -19,7 +21,9 @@ export interface StockQuoteDetails {
   week52Low: number;
   week52High: number;
   sparkline: number[];
+  sparklinePreviousTradingDay: boolean;
   positive: boolean;
+  currency: string;
 }
 
 export async function getStockPrice(symbol: string) {
@@ -39,6 +43,8 @@ export async function getStockQuote(symbol: string): Promise<StockQuote> {
     price: quote.regularMarketPrice ?? 0,
     change: quote.regularMarketChange ?? 0,
     changePercent: quote.regularMarketChangePercent ?? 0,
+    currency: quote.currency ?? "USD",
+    name: quote.longName ?? quote.shortName ?? undefined,
   };
 }
 
@@ -51,6 +57,7 @@ export async function getStockQuoteDetails(symbol: string): Promise<StockQuoteDe
 
   // Fetch intraday sparkline data
   let sparkline: number[] = [];
+  let sparklinePreviousTradingDay = false;
   try {
     const now = new Date();
     const { start, end } = getTradingSessionBounds(now);
@@ -59,6 +66,23 @@ export async function getStockQuoteDetails(symbol: string): Promise<StockQuoteDe
       interval: "5m",
     });
     sparkline = history.map((h) => h.close);
+    // On market holidays Yahoo has no intraday points. Walk back through the
+    // recent calendar until we find the latest completed trading session.
+    if (sparkline.length < 2) {
+      for (let daysBack = 1; daysBack <= 7; daysBack += 1) {
+        const prior = new Date(now.getTime() - daysBack * 24 * 60 * 60 * 1000);
+        const bounds = getTradingSessionBounds(prior);
+        const previousHistory = await getHistoricalPrices(symbol, bounds.start, bounds.end, {
+          intraday: true,
+          interval: "5m",
+        });
+        if (previousHistory.length >= 2) {
+          sparkline = previousHistory.map((h) => h.close);
+          sparklinePreviousTradingDay = true;
+          break;
+        }
+      }
+    }
   } catch {
     // Sparkline data is optional
   }
@@ -72,7 +96,9 @@ export async function getStockQuoteDetails(symbol: string): Promise<StockQuoteDe
     week52Low: quote.fiftyTwoWeekLow ?? 0,
     week52High: quote.fiftyTwoWeekHigh ?? 0,
     sparkline,
+    sparklinePreviousTradingDay,
     positive: change >= 0,
+    currency: quote.currency ?? "USD",
   };
 }
 
@@ -258,4 +284,47 @@ export function getTradingSessionBounds(now: Date): {
   }
 
   return { start, end };
+}
+
+export type ListingResolution = {
+  symbol: string;
+  resolvedSymbol: string;
+  currency: string;
+  price: number;
+  confirmed: boolean;
+};
+
+/**
+ * Broker exports often omit the exchange suffix. For CAD trades, prefer a
+ * verified TSX listing rather than accidentally accepting a U.S. ticker with
+ * the same letters (for example ZSP.TO instead of ZSP).
+ */
+export async function resolveListingSymbol(symbol: string, declaredCurrency?: string): Promise<ListingResolution> {
+  const normalized = symbol.trim().toUpperCase();
+  const currency = (declaredCurrency ?? "").trim().toUpperCase();
+  const candidates = currency === "CAD" && !normalized.includes(".")
+    ? [`${normalized}.TO`, normalized]
+    : [normalized];
+
+  const results = await Promise.all(candidates.map(async (candidate) => {
+    try {
+      const quote = await getStockQuote(candidate);
+      return { candidate, quote };
+    } catch {
+      return null;
+    }
+  }));
+  const matching = results.find((result) => result && result.quote.price > 0 && result.quote.currency.toUpperCase() === currency);
+  if (matching) return { symbol: normalized, resolvedSymbol: matching.candidate, currency: matching.quote.currency, price: matching.quote.price, confirmed: true };
+
+  const available = results.find((result) => result && result.quote.price > 0);
+  return {
+    symbol: normalized,
+    resolvedSymbol: available?.candidate ?? normalized,
+    currency: available?.quote.currency ?? "",
+    price: available?.quote.price ?? 0,
+    // An explicit exchange suffix (such as .TO) is already a specific listing,
+    // even when a corporate-action row has no currency column.
+    confirmed: !currency && normalized.includes(".") && !!available,
+  };
 }

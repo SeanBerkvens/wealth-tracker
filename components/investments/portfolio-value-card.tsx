@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { formatCurrency } from "@/lib/currency-format";
 
 interface PortfolioValueCardProps {
   value: number;
@@ -8,11 +9,12 @@ interface PortfolioValueCardProps {
   todayGainPercent: number;
   holdings: number;
   bookValue: number;
+  currency?: string;
 }
 
 const ANIMATION_DURATION_MS = 500;
 
-export default function PortfolioValueCard({ value }: PortfolioValueCardProps) {
+export default function PortfolioValueCard({ value, currency = "CAD" }: PortfolioValueCardProps) {
   const [displayValue, setDisplayValue] = useState(value);
   const [isAnimating, setIsAnimating] = useState(false);
   const displayedValueRef = useRef(value);
@@ -60,10 +62,7 @@ export default function PortfolioValueCard({ value }: PortfolioValueCardProps) {
           isAnimating ? "scale-105" : "scale-100"
         }`}
       >
-        ${displayValue.toLocaleString(undefined, {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })}
+        {formatCurrency(displayValue, currency)}
       </p>
     </div>
   );

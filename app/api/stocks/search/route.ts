@@ -10,24 +10,10 @@ export async function GET(req: Request) {
     }
 
     const apiKey = process.env.FINNHUB_API_KEY;
-
-    if (!apiKey) {
-      console.error("Missing FINNHUB_API_KEY");
-      return NextResponse.json([]);
-    }
-
-    const res = await fetch(
-      `https://finnhub.io/api/v1/search?q=${encodeURIComponent(query)}&token=${apiKey}`
-    );
-
-    const data = await res.json();
-
-    return NextResponse.json(
-      data?.result?.map((item: any) => ({
-        symbol: item.symbol,
-        name: item.description,
-      })) ?? []
-    );
+    if (!apiKey) return NextResponse.json([]);
+    const res = await fetch(`https://finnhub.io/api/v1/search?q=${encodeURIComponent(query)}&token=${apiKey}`);
+    const data = await res.json() as { result?: { symbol?: string; description?: string }[] };
+    return NextResponse.json(data.result?.map((item) => ({ symbol: item.symbol, name: item.description })) ?? []);
   } catch (err) {
     console.error("Route error:", err);
     return NextResponse.json([]);

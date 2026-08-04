@@ -6,6 +6,7 @@ import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { useAuth } from "@/components/auth/auth-provider";
 import { ConfirmSignOut } from "@/components/auth/confirm-sign-out";
+import { CurrencySelect } from "@/components/settings/currency-select";
 import {
   LayoutDashboard,
   Wallet,
@@ -291,6 +292,8 @@ export default function Sidebar() {
                       />
                     </button>
 
+                    {!collapsed && <CurrencySelect />}
+
                     {settingsOpen && !collapsed && (
                       <div className="ml-2 space-y-0.5">
                         {/* User Info */}
@@ -313,7 +316,6 @@ export default function Sidebar() {
                             </p>
                           </div>
                         </div>
-
                         {/* Theme Toggle */}
                         <button
                           onClick={() => setTheme(theme === "dark" ? "light" : "dark")}

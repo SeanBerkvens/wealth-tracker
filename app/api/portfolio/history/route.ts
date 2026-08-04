@@ -2,11 +2,20 @@ import { NextResponse } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { getHistoricalPrices, getTradingSessionBounds } from "@/lib/yahoo";
+import { getExchangeRate, getExchangeRates, normalizeCurrency } from "@/lib/currency";
+
+const benchmarks: Record<string, string> = {
+  sp500: "^GSPC",
+  nasdaq100: "^NDX",
+  dowjones: "^DJI",
+  totalmarket: "^W5000",
+};
 
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
     const interval = searchParams.get("interval") || "1M";
+    const benchmarkSymbol = benchmarks[searchParams.get("benchmark") ?? ""];
 
     // Calculate date range based on interval
     const now = new Date();
@@ -91,6 +100,12 @@ export async function GET(req: Request) {
     if (!investments || investments.length === 0) {
       return NextResponse.json([]);
     }
+    // Only active holdings in this view define its history range. Older
+    // orphaned/deleted transactions must not extend ALL back in time.
+    const activeInvestmentIds = investments.map((investment) => investment.id);
+    const reportingCurrency = normalizeCurrency(user.user_metadata?.preferred_currency);
+    const exchangeRates = await getExchangeRates(investments.map((investment) => investment.currency ?? "CAD"), reportingCurrency);
+    const report = (amount: number, currency: string | null | undefined) => amount * (exchangeRates.get(normalizeCurrency(currency)) ?? 1);
 
     // For "ALL" interval, find earliest purchase date or transaction date
     if (interval === "ALL") {
@@ -98,6 +113,7 @@ export async function GET(req: Request) {
         .from("transactions")
         .select("date")
         .eq("user_id", userId)
+        .in("investment_id", activeInvestmentIds)
         .order("date", { ascending: true })
         .limit(1);
 
@@ -121,6 +137,7 @@ export async function GET(req: Request) {
       .from("transactions")
       .select("date")
       .eq("user_id", userId)
+      .in("investment_id", activeInvestmentIds)
       .order("date", { ascending: true })
       .limit(1);
 
@@ -162,6 +179,21 @@ export async function GET(req: Request) {
     }
     const allDates = Array.from(allDatesSet).sort();
 
+    let benchmarkPriceMap = new Map<string, number>();
+    if (benchmarkSymbol) {
+      try {
+        const benchmarkPrices = await getHistoricalPrices(benchmarkSymbol, startDate, endDate, { intraday: isIntraday });
+        let lastPrice: number | undefined;
+        const pricesByDate = new Map(benchmarkPrices.map((point) => [point.date, point.close]));
+        for (const date of allDates) {
+          if (pricesByDate.has(date)) lastPrice = pricesByDate.get(date);
+          if (lastPrice !== undefined) benchmarkPriceMap.set(date, lastPrice);
+        }
+      } catch (error) {
+        console.error(`Failed to fetch benchmark history for ${benchmarkSymbol}:`, error);
+      }
+    }
+
     // For each stock, create a complete price series by forward-filling missing days
     const filledPriceMap: Record<string, Map<string, number>> = {};
 
@@ -193,54 +225,75 @@ export async function GET(req: Request) {
       filledPriceMap[investment.symbol] = filledMap;
     }
 
+    // Transactions are the source of truth for the shares held on each date.
+    // This prevents today's balance being incorrectly projected back onto the
+    // beginning of an ALL-history chart.
+    const activeInvestmentIdSet = new Set(activeInvestmentIds);
+    const { data: transactions } = await supabase
+      .from("transactions")
+      .select("*")
+      .eq("user_id", userId)
+      .order("date", { ascending: true })
+      .order("created_at", { ascending: true });
+    const transactionsByDate: Record<string, typeof transactions> = {};
+    for (const transaction of transactions ?? []) {
+      if (!transaction.investment_id || !activeInvestmentIdSet.has(transaction.investment_id)) continue;
+      (transactionsByDate[transaction.date] ??= []).push(transaction);
+    }
+    const transactionDates = Object.keys(transactionsByDate).sort();
+    const sharesByInvestment = new Map<string, number>();
+    let transactionDateIndex = 0;
+
     // Build a map of date -> total portfolio value using forward-filled prices
     const dateValueMap: Record<string, number> = {};
 
     for (const date of allDates) {
+      while (transactionDateIndex < transactionDates.length && transactionDates[transactionDateIndex] <= date) {
+        for (const transaction of transactionsByDate[transactionDates[transactionDateIndex]] ?? []) {
+          const previous = sharesByInvestment.get(transaction.investment_id) ?? 0;
+          const shares = Number(transaction.shares) || 0;
+          if (transaction.type === "buy") sharesByInvestment.set(transaction.investment_id, previous + shares);
+          else if (transaction.type === "sell") sharesByInvestment.set(transaction.investment_id, Math.max(0, previous - shares));
+          else if (transaction.type === "split") sharesByInvestment.set(transaction.investment_id, previous * shares);
+          else if (transaction.type === "subdivision") sharesByInvestment.set(transaction.investment_id, previous + shares);
+        }
+        transactionDateIndex += 1;
+      }
       let totalValue = 0;
       
       for (const investment of investments) {
         const filledMap = filledPriceMap[investment.symbol];
         if (!filledMap) continue;
 
-        const shares = Number(investment.shares);
+        const shares = sharesByInvestment.get(investment.id) ?? 0;
         const price = filledMap.get(date);
         
         if (price !== undefined) {
-          totalValue += shares * price;
+          totalValue += report(shares * price, investment.currency);
         }
       }
       
       dateValueMap[date] = totalValue;
     }
 
-    // Get the set of currently held symbols
-    const heldSymbols = new Set(investments.map((inv) => inv.symbol));
-
-    // Fetch all transactions to build cumulative book value (optionally filtered by portfolio)
-    let txQuery = supabase.from("transactions").select("*").eq("user_id", userId).order("date", { ascending: true });
-    if (portfolio) {
-      txQuery = txQuery.eq("portfolio", portfolio);
-    }
-    const { data: transactions } = await txQuery;
-
     // Build cumulative book value map by date
     const dateBookValueMap: Record<string, number> = {};
     let runningBookValue = 0;
 
     if (transactions && transactions.length > 0) {
-      // Group transactions by date, only for symbols that are still held
-      const txByDate: Record<string, { shares: number; price: number; type: string }[]> = {};
+      // Group transactions by date, only for currently active holdings.
+      const txByDate: Record<string, { shares: number; price: number; commission: number; type: string; currency?: string }[]> = {};
       for (const tx of transactions) {
-        // Skip transactions for symbols that are no longer held
-        if (!heldSymbols.has(tx.symbol)) continue;
+        if (!tx.investment_id || !activeInvestmentIdSet.has(tx.investment_id)) continue;
 
         const txDate = tx.date; // YYYY-MM-DD format
         if (!txByDate[txDate]) txByDate[txDate] = [];
         txByDate[txDate].push({
           shares: Number(tx.shares),
           price: Number(tx.price),
+          commission: Number(tx.commission) || 0,
           type: tx.type,
+          currency: tx.currency,
         });
       }
 
@@ -251,9 +304,11 @@ export async function GET(req: Request) {
         const txs = txByDate[txDate];
         for (const tx of txs) {
           if (tx.type === "buy") {
-            runningBookValue += tx.shares * tx.price;
-          } else {
-            runningBookValue -= tx.shares * tx.price;
+            // Net deposits are the cash still invested: purchase cost plus fees.
+            runningBookValue += report(tx.shares * tx.price + tx.commission, tx.currency);
+          } else if (tx.type === "sell") {
+            // A sale returns proceeds to cash, less the broker's commission.
+            runningBookValue -= report(tx.shares * tx.price - tx.commission, tx.currency);
           }
         }
         dateBookValueMap[txDate] = runningBookValue;
@@ -273,9 +328,43 @@ export async function GET(req: Request) {
             break;
           }
         }
-        return { date, value: Math.round(value), bookValue: Math.round(bookValue) };
+        return { date, value: Math.round(value), bookValue: Math.round(bookValue), performanceValue: Math.round(value - bookValue) };
       })
       .sort((a, b) => a.date.localeCompare(b.date));
+
+    // In comparison mode, apply the portfolio's dated cash flows to the index.
+    // Both plotted lines are gains over net deposits, so deposits themselves do
+    // not make either investment strategy look better.
+    if (benchmarkSymbol && benchmarkPriceMap.size > 0) {
+      const benchmarkRate = await getExchangeRate("USD", reportingCurrency);
+      const cashFlowByDate: Record<string, number> = {};
+      for (const transaction of transactions ?? []) {
+        if (!transaction.investment_id || !activeInvestmentIdSet.has(transaction.investment_id)) continue;
+        const shares = Number(transaction.shares) || 0;
+        const price = Number(transaction.price) || 0;
+        const commission = Number(transaction.commission) || 0;
+        const flow = transaction.type === "buy"
+          ? report(shares * price + commission, transaction.currency)
+          : transaction.type === "sell"
+            ? -report(shares * price - commission, transaction.currency)
+            : 0;
+        cashFlowByDate[transaction.date] = (cashFlowByDate[transaction.date] ?? 0) + flow;
+      }
+      const cashFlowDates = Object.keys(cashFlowByDate).sort();
+      let cashFlowIndex = 0;
+      let benchmarkUnits = 0;
+      for (const point of history) {
+        const benchmarkPrice = benchmarkPriceMap.get(point.date);
+        if (benchmarkPrice === undefined) continue;
+        const benchmarkPriceInReportingCurrency = benchmarkPrice * benchmarkRate;
+        while (cashFlowIndex < cashFlowDates.length && cashFlowDates[cashFlowIndex] <= point.date) {
+          benchmarkUnits += cashFlowByDate[cashFlowDates[cashFlowIndex]] / benchmarkPriceInReportingCurrency;
+          cashFlowIndex += 1;
+        }
+        const benchmarkValue = benchmarkUnits * benchmarkPriceInReportingCurrency;
+        Object.assign(point, { benchmarkValue: Math.round(benchmarkValue - point.bookValue) });
+      }
+    }
 
     return NextResponse.json(history);
   } catch (err) {

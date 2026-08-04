@@ -1,11 +1,14 @@
+import { formatCurrency } from "@/lib/currency-format";
+
 interface UnrealizedGainCardProps {
   value: number;
   percent: number;
+  currency?: string;
 }
 
 export default function UnrealizedGainCard({
   value,
-  percent,
+  percent, currency = "CAD",
 }: UnrealizedGainCardProps) {
   const positive = value >= 0;
 
@@ -20,11 +23,7 @@ export default function UnrealizedGainCard({
             positive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"
           }`}
         >
-          {positive ? "+" : ""}$
-          {value.toLocaleString(undefined, {
-            minimumFractionDigits: 2,
-            maximumFractionDigits: 2,
-          })}
+          {positive ? "+" : ""}{formatCurrency(Math.abs(value), currency)}
         </p>
         <span
           className={`inline-flex items-center rounded-full px-3 py-1.5 text-sm font-semibold ${

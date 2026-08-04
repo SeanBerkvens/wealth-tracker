@@ -16,6 +16,7 @@ interface AllocationItem {
 interface AssetAllocationProps {
   data?: AllocationItem[];
   details?: AllocationItem[];
+  currency?: string;
 }
 
 const COLORS = [
@@ -29,14 +30,12 @@ const COLORS = [
   "#8b5cf6",
 ];
 
-function formatCurrency(value: number) {
-  return `$${value.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+function formatCurrency(value: number, currency: string) {
+  void currency;
+  return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-export function AssetAllocation({ data = [], details }: AssetAllocationProps) {
+export function AssetAllocation({ data = [], details, currency = "CAD" }: AssetAllocationProps) {
   const total = data.reduce((sum, item) => sum + Number(item.value), 0);
 
   const hasData = total > 0;
@@ -99,7 +98,7 @@ export function AssetAllocation({ data = [], details }: AssetAllocationProps) {
                   formatter={(value, name) => {
                     const num = Number(value) || 0;
                     return [
-                      `${formatCurrency(num)} (${(
+                      `${formatCurrency(num, currency)} (${(
                         (num / total) *
                         100
                       ).toFixed(1)}%)`,
@@ -129,7 +128,7 @@ export function AssetAllocation({ data = [], details }: AssetAllocationProps) {
                 </span>
 
                 <span className="font-medium text-card-foreground">
-                  {formatCurrency(item.value)}
+                  {formatCurrency(item.value, currency)}
                   <span className="ml-2 text-muted-foreground">
                     {((item.value / total) * 100).toFixed(1)}%
                   </span>

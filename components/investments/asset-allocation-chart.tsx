@@ -16,6 +16,7 @@ interface Investment {
 
 interface AssetAllocationChartProps {
   investments: Investment[];
+  currency?: string;
 }
 
 const BASE_COLORS = [
@@ -35,15 +36,13 @@ function colorFor(index: number): string {
   return `hsl(${hue} 60% 55%)`;
 }
 
-function formatCurrency(value: number) {
-  return `$${value.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
+function formatCurrency(value: number, currency: string) {
+  void currency;
+  return `$${value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
 export default function AssetAllocationChart({
-  investments,
+  investments, currency = "CAD",
 }: AssetAllocationChartProps) {
   const total = investments.reduce(
     (sum, investment) => sum + Number(investment.value),
@@ -55,10 +54,11 @@ export default function AssetAllocationChart({
       name: investment.symbol || investment.name,
       value: Number(investment.value),
     }))
+    .filter((investment) => investment.value > 0)
     .sort((a, b) => b.value - a.value);
 
   return (
-    <div className="rounded-2xl bg-card border border-border p-5 shadow-sm">
+    <div className="h-full min-h-[620px] rounded-2xl bg-card border border-border p-5 shadow-sm flex flex-col">
       {/* Header */}
       <div className="mb-4">
         <h2 className="text-xl font-semibold text-card-foreground">
@@ -70,13 +70,13 @@ export default function AssetAllocationChart({
       </div>
 
       {data.length === 0 || total <= 0 ? (
-        <div className="h-[541px] flex items-center justify-center text-muted-foreground text-sm">
+        <div className="flex flex-1 items-center justify-center text-muted-foreground text-sm">
           No holdings to display
         </div>
       ) : (
         <>
           {/* Donut + Horizontal Stacked Bar — 1:2 ratio */}
-          <div className="grid h-[541px] grid-cols-[330px_360px] justify-center gap-6">
+          <div className="grid min-h-0 flex-1 grid-cols-[330px_360px] justify-center gap-6">
             {/* Donut */}
             <div>
               <ResponsiveContainer width="100%" height="100%">
@@ -106,7 +106,7 @@ export default function AssetAllocationChart({
                       formatter={(value, name) => {
                         const num = Number(value) || 0;
                         return [
-                          `${formatCurrency(num)} (${(
+                          `${formatCurrency(num, currency)} (${(
                             (num / total) *
                             100
                           ).toFixed(1)}%)`,
@@ -139,8 +139,8 @@ export default function AssetAllocationChart({
               </div>
 
               {/* Legend */}
-              <div className="mt-4 max-w-[360px] space-y-2.5">
-                {data.slice(0, 5).map((item, index) => (
+              <div className={`mt-4 max-w-[360px] space-y-2.5 ${data.length > 10 ? "max-h-[300px] overflow-y-auto pr-2" : ""}`}>
+                {data.map((item, index) => (
                   <div
                     key={item.name}
                     className="flex items-center justify-between text-sm"
@@ -153,18 +153,13 @@ export default function AssetAllocationChart({
                       {item.name}
                     </span>
                     <span className="grid grid-cols-[7rem_3.5rem] gap-2 text-right font-medium tabular-nums text-card-foreground">
-                      <span>{formatCurrency(item.value)}</span>
+                      <span>{formatCurrency(item.value, currency)}</span>
                       <span className="text-muted-foreground">
                         {((item.value / total) * 100).toFixed(1)}%
                       </span>
                     </span>
                   </div>
                 ))}
-                {data.length > 5 && (
-                  <p className="text-xs text-muted-foreground">
-                    +{data.length - 5} more
-                  </p>
-                )}
               </div>
             </div>
           </div>

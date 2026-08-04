@@ -10,6 +10,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { useAuth } from "@/components/auth/auth-provider";
+import { formatCurrency, normalizeCurrency } from "@/lib/currency-format";
 
 const INTERVALS = [
   { label: "1D", value: "1D" },
@@ -23,13 +25,25 @@ const INTERVALS = [
   { label: "ALL", value: "ALL" },
 ];
 
+const BENCHMARKS = [
+  { value: "sp500", label: "S&P 500" },
+  { value: "nasdaq100", label: "Nasdaq-100" },
+  { value: "dowjones", label: "Dow Jones" },
+  { value: "totalmarket", label: "Total Stock Market" },
+];
+
 export default function PortfolioHistoryChart({
   portfolio,
+  refreshKey = 0,
 }: {
   portfolio?: string;
+  refreshKey?: number;
 }) {
+  const { user } = useAuth();
+  const currency = normalizeCurrency(user?.user_metadata?.preferred_currency);
   const [interval, setInterval] = useState("1M");
-  const [data, setData] = useState<{ date: string; value: number; bookValue: number }[]>([]);
+  const [comparison, setComparison] = useState("");
+  const [data, setData] = useState<{ date: string; value: number; bookValue: number; performanceValue?: number; benchmarkValue?: number }[]>([]);
   const [loading, setLoading] = useState(false);
 
   // Format interval for display
@@ -51,12 +65,12 @@ export default function PortfolioHistoryChart({
   // Calculate change over the period
   const periodChange = useMemo(() => {
     if (data.length < 2) return null;
-    const firstValue = data[0].value;
-    const lastValue = data[data.length - 1].value;
+    const firstValue = comparison ? (data[0].performanceValue ?? 0) : data[0].value;
+    const lastValue = comparison ? (data[data.length - 1].performanceValue ?? 0) : data[data.length - 1].value;
     const change = lastValue - firstValue;
     const changePercent = firstValue > 0 ? (change / firstValue) * 100 : 0;
     return { change, changePercent };
-  }, [data]);
+  }, [data, comparison]);
 
   useEffect(() => {
     async function fetchHistory() {
@@ -64,6 +78,7 @@ export default function PortfolioHistoryChart({
       try {
         const params = new URLSearchParams({ interval });
         if (portfolio) params.set("portfolio", portfolio);
+        if (comparison) params.set("benchmark", comparison);
         const res = await fetch(`/api/portfolio/history?${params.toString()}`);
         const result = await res.json();
         setData(Array.isArray(result) ? result : []);
@@ -76,10 +91,10 @@ export default function PortfolioHistoryChart({
     }
 
     fetchHistory();
-  }, [interval, portfolio]);
+  }, [interval, portfolio, comparison, refreshKey]);
 
   return (
-    <div className="rounded-2xl bg-card border border-border p-6 shadow-sm card-hover">
+    <div className="h-full min-h-[620px] rounded-2xl bg-card border border-border p-6 shadow-sm card-hover flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
@@ -87,7 +102,7 @@ export default function PortfolioHistoryChart({
             Portfolio History
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Your portfolio value over time
+            {comparison ? "Investment growth compared with the selected index" : "Your portfolio value over time"}
           </p>
           {periodChange && (
             <div className={`mt-2 text-sm font-medium flex items-center gap-1 ${
@@ -95,15 +110,25 @@ export default function PortfolioHistoryChart({
             }`}>
               <span>
                 {periodChange.change >= 0 ? '+' : '-'}
-                ${Math.abs(periodChange.change).toLocaleString()}{' '}
+                {formatCurrency(Math.abs(periodChange.change), currency)}{' '}
                 past {getIntervalLabel(interval)} →
               </span>
             </div>
           )}
         </div>
 
-        {/* Interval Selector */}
-        <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
+        <div className="flex items-center gap-3">
+          <label className="relative">
+            <span className="sr-only">Compare portfolio to market index</span>
+            <select value={comparison} onChange={(event) => setComparison(event.target.value)} className="h-9 cursor-pointer appearance-none rounded-lg border border-border bg-muted py-1.5 pl-3 pr-8 text-sm font-medium text-foreground outline-none transition hover:border-primary focus:border-primary">
+              <option value="">Compare</option>
+              {BENCHMARKS.map((benchmark) => <option key={benchmark.value} value={benchmark.value}>{benchmark.label}</option>)}
+            </select>
+            <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">⌄</span>
+          </label>
+
+          {/* Interval Selector */}
+          <div className="flex items-center gap-1 bg-muted rounded-lg p-1">
           {INTERVALS.map((item) => (
             <button
               key={item.value}
@@ -117,11 +142,12 @@ export default function PortfolioHistoryChart({
               {item.label}
             </button>
           ))}
+          </div>
         </div>
       </div>
 
       {/* Chart */}
-      <div className="h-[501px]">
+      <div className="min-h-0 flex-1">
         {loading ? (
           <div className="h-full flex items-center justify-center text-muted-foreground">
             Loading...
@@ -157,8 +183,8 @@ export default function PortfolioHistoryChart({
                 }}
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 formatter={(value: any, name: any) => {
-                  const label = name === "bookValue" ? "Net Deposits" : "Value";
-                  return [`$${Number(value).toLocaleString()}`, label];
+                  const label = name === "bookValue" ? "Net Deposits" : name === "benchmarkValue" ? `${BENCHMARKS.find((benchmark) => benchmark.value === comparison)?.label ?? "Benchmark"} growth` : name === "performanceValue" ? "Investment growth" : "Value";
+                  return [formatCurrency(Number(value), currency), label];
                 }}
                 labelFormatter={(label, payload) => {
                   // Extract date from payload when available
@@ -186,19 +212,21 @@ export default function PortfolioHistoryChart({
 
               <Area
                 type="monotone"
-                dataKey="value"
+                dataKey={comparison ? "performanceValue" : "value"}
+                name={comparison ? "performanceValue" : "value"}
                 stroke="var(--primary)"
                 strokeWidth={3}
                 fill="url(#portfolioGradient)"
               />
-              <Area
+              {comparison && <Area type="monotone" dataKey="benchmarkValue" name="benchmarkValue" stroke="#f59e0b" strokeWidth={2.5} strokeDasharray="6 3" fill="none" connectNulls />}
+              {!comparison && <Area
                 type="monotone"
                 dataKey="bookValue"
                 stroke="var(--chart-2)"
                 strokeWidth={2}
                 strokeDasharray="6 3"
                 fill="url(#bookValueGradient)"
-              />
+              />}
             </AreaChart>
           </ResponsiveContainer>
         )}

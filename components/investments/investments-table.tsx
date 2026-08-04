@@ -9,6 +9,7 @@ import RangeBar from "@/components/investments/range-bar";
 import { useAuth } from "@/components/auth/auth-provider";
 import { createClient } from "@/lib/supabase/client";
 import { ChevronDown, Plus } from "lucide-react";
+import { formatCurrency } from "@/lib/currency-format";
 
 type Investment = {
   id: string;
@@ -19,12 +20,14 @@ type Investment = {
   current_price: number | string;
   purchase_date?: string;
   portfolio?: string;
+  currency?: string;
 };
 
 type SortKey =
   | "portfolio"
   | "symbol"
   | "name"
+  | "currency"
   | "day"
   | "dayRange"
   | "week52Range"
@@ -33,6 +36,7 @@ type SortKey =
   | "avg"
   | "book"
   | "market"
+  | "realizedGain"
   | "gain"
   | "gainPct";
 
@@ -45,11 +49,13 @@ type EnrichedInvestment = {
   current: number;
   book: number;
   market: number;
+  realizedGain: number;
   gain: number;
   gainPct: number;
   positive: boolean;
   purchase_date?: string;
   portfolio?: string;
+  currency?: string;
 };
 
 type StockDetail = {
@@ -62,8 +68,12 @@ type StockDetail = {
   week52Low: number;
   week52High: number;
   sparkline: number[];
+  sparklinePreviousTradingDay: boolean;
   positive: boolean;
+  currency: string;
 };
+
+type RealizedPerformance = { gain: number; cost: number };
 
 function SortHeader({
   label,
@@ -117,25 +127,55 @@ export default function InvestmentsTable({
   const [logos, setLogos] = useState<Map<string, string>>(new Map());
   const [expandedInvestmentId, setExpandedInvestmentId] = useState<string | null>(null);
   const [holdingIdsWithTransactions, setHoldingIdsWithTransactions] = useState<Set<string>>(new Set());
+  const [realizedPerformance, setRealizedPerformance] = useState<Map<string, RealizedPerformance>>(new Map());
   const fetchIdRef = useRef(0);
 
   useEffect(() => {
     const investmentIds = (investments ?? []).map((investment) => investment.id);
     if (!userId || investmentIds.length === 0) {
       void Promise.resolve().then(() => setHoldingIdsWithTransactions(new Set()));
+      void Promise.resolve().then(() => setRealizedPerformance(new Map()));
       return;
     }
 
     const loadTransactionHoldingIds = async () => {
       const { data } = await supabase
         .from("transactions")
-        .select("investment_id")
+        .select("investment_id, type, shares, price, commission")
         .eq("user_id", userId)
-        .in("investment_id", investmentIds);
+        .in("investment_id", investmentIds)
+        .order("date", { ascending: true })
+        .order("created_at", { ascending: true });
 
       setHoldingIdsWithTransactions(
         new Set((data ?? []).flatMap((transaction) => transaction.investment_id ? [transaction.investment_id] : []))
       );
+      const ledgerByHolding = new Map<string, { shares: number; costBasis: number; realizedGain: number; realizedCost: number }>();
+      for (const transaction of data ?? []) {
+        if (!transaction.investment_id) continue;
+        const ledger = ledgerByHolding.get(transaction.investment_id) ?? { shares: 0, costBasis: 0, realizedGain: 0, realizedCost: 0 };
+        const quantity = Number(transaction.shares) || 0;
+        const price = Number(transaction.price) || 0;
+        const commission = Number(transaction.commission) || 0;
+        if (transaction.type === "buy") {
+          ledger.shares += quantity;
+          ledger.costBasis += quantity * price + commission;
+        } else if (transaction.type === "sell") {
+          const sold = Math.min(ledger.shares, quantity);
+          const costPerShare = ledger.shares > 0 ? ledger.costBasis / ledger.shares : 0;
+          const soldCost = costPerShare * sold;
+          ledger.realizedCost += soldCost;
+          ledger.realizedGain += (sold * price - commission) - soldCost;
+          ledger.shares -= sold;
+          ledger.costBasis -= soldCost;
+        } else if (transaction.type === "split") {
+          ledger.shares *= quantity;
+        } else if (transaction.type === "subdivision") {
+          ledger.shares += quantity;
+        }
+        ledgerByHolding.set(transaction.investment_id, ledger);
+      }
+      setRealizedPerformance(new Map([...ledgerByHolding].map(([id, ledger]) => [id, { gain: ledger.realizedGain, cost: ledger.realizedCost }])));
     };
 
     void loadTransactionHoldingIds();
@@ -149,8 +189,14 @@ export default function InvestmentsTable({
 
       const book = shares * avg;
       const market = shares * current;
-      const gain = market - book;
-      const gainPct = book !== 0 ? (gain / book) * 100 : 0;
+      const unrealizedGain = market - book;
+      const closedPerformance = realizedPerformance.get(inv.id);
+      const realizedGain = closedPerformance?.gain ?? 0;
+      const isClosed = shares <= 0.00000001 && !!closedPerformance;
+      const gain = isClosed ? closedPerformance.gain : unrealizedGain;
+      const gainPct = isClosed
+        ? closedPerformance.cost !== 0 ? (closedPerformance.gain / closedPerformance.cost) * 100 : 0
+        : book !== 0 ? (gain / book) * 100 : 0;
 
       return {
         id: inv.id,
@@ -161,14 +207,16 @@ export default function InvestmentsTable({
         current,
         book,
         market,
+        realizedGain,
         gain,
         gainPct,
         positive: gain >= 0,
         purchase_date: inv.purchase_date,
         portfolio: inv.portfolio,
+        currency: inv.currency ?? "CAD",
       };
     });
-  }, [investments]);
+  }, [investments, realizedPerformance]);
 
   useEffect(() => {
     const symbols = [...new Set((investments ?? []).map((inv) => inv.symbol))];
@@ -224,6 +272,8 @@ export default function InvestmentsTable({
           return inv.symbol;
         case "name":
           return inv.name;
+        case "currency":
+          return inv.currency ?? "CAD";
         case "day":
           return stockDetails.get(inv.symbol)?.changePercent ?? 0;
         case "dayRange": {
@@ -244,6 +294,8 @@ export default function InvestmentsTable({
           return inv.book;
         case "market":
           return inv.market;
+        case "realizedGain":
+          return inv.realizedGain;
         case "gain":
           return inv.gain;
         case "gainPct":
@@ -288,24 +340,26 @@ export default function InvestmentsTable({
     <div className="w-full">
       {/* TABLE */}
       <div className="overflow-x-auto">
-        <div className="mx-auto" style={{ minWidth: showPortfolio ? "1200px" : "1100px" }}>
+        <div className="mx-auto" style={{ minWidth: showPortfolio ? "1180px" : "1100px" }}>
           <table className="w-full table-fixed text-base">
             <thead>
               <tr className="border-b border-border text-muted-foreground">
-                {showPortfolio && <th className="py-3 text-center w-[8%]"><SortHeader label="PORTFOLIO" keyName="portfolio" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>}
-                <th className="py-3 text-center w-[12%]"><SortHeader label="TICKER" keyName="symbol" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
-                <th className="py-3 text-center w-[7%]"><SortHeader label="COMPANY" keyName="name" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
-                <th className="py-3 text-center w-[8%]"><SortHeader label="DAY" keyName="day" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
-                <th className="py-3 text-center w-[12%]"><SortHeader label="DAY RANGE" keyName="dayRange" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
-                <th className="py-3 text-center w-[12%]"><SortHeader label="52W RANGE" keyName="week52Range" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
-                <th className="py-3 text-center w-[6%]"><SortHeader label="SHARES" keyName="shares" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
-                <th className="py-3 text-center w-[7%]"><SortHeader label="LAST" keyName="last" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
-                <th className="py-3 text-center w-[7%]"><SortHeader label="AVG" keyName="avg" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
-                <th className="py-3 text-center w-[7%]"><SortHeader label="BOOK" keyName="book" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
-                <th className="py-3 text-center w-[7%]"><SortHeader label="MARKET" keyName="market" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
-                <th className="py-3 text-center w-[7%]"><SortHeader label="GAIN $" keyName="gain" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
-                <th className="py-3 text-center w-[7%]"><SortHeader label="GAIN %" keyName="gainPct" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
-                <th className="py-3 text-center text-base font-semibold text-muted-foreground w-[6%]">ACTIONS</th>
+                {showPortfolio && <th className="py-3 text-center w-[7%]"><SortHeader label="PORTFOLIO" keyName="portfolio" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>}
+                <th className="py-3 text-center w-[9%]"><SortHeader label="TICKER" keyName="symbol" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center w-[8%]"><SortHeader label="COMPANY" keyName="name" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center w-[5%]"><SortHeader label="CURRENCY" keyName="currency" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center w-[5%]"><SortHeader label="DAY" keyName="day" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center w-[9%]"><SortHeader label="DAY RANGE" keyName="dayRange" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center w-[9%]"><SortHeader label="52W RANGE" keyName="week52Range" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center w-[5%]"><SortHeader label="SHARES" keyName="shares" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center w-[5%]"><SortHeader label="LAST" keyName="last" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center w-[5%]"><SortHeader label="AVG" keyName="avg" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center w-[5%]"><SortHeader label="BOOK" keyName="book" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center w-[6%]"><SortHeader label="MARKET" keyName="market" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center w-[6%]"><SortHeader label="GAIN $" keyName="gain" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center w-[5%]"><SortHeader label="GAIN %" keyName="gainPct" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center w-[6%]"><SortHeader label="REALIZED" keyName="realizedGain" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></th>
+                <th className="py-3 text-center text-base font-semibold text-muted-foreground w-[5%]">ACTIONS</th>
               </tr>
             </thead>
 
@@ -313,9 +367,11 @@ export default function InvestmentsTable({
               {sorted.map((inv) => {
                 const detail = getDetail(inv.symbol);
                 const isPositive = detail ? detail.positive : inv.positive;
+                const listingCurrency = detail?.currency ?? inv.currency ?? "CAD";
 
                 const isExpanded = expandedInvestmentId === inv.id;
                 const isEmptyHolding = !holdingIdsWithTransactions.has(inv.id);
+                const isClosedPosition = inv.shares <= 0.00000001 && !isEmptyHolding;
 
                 return (
                   <Fragment key={inv.id}>
@@ -365,14 +421,22 @@ export default function InvestmentsTable({
                     <td className="py-3 text-center text-muted-foreground w-[7%] truncate max-w-0" title={inv.name}>
                       {inv.name}
                     </td>
+                    <td className="py-3 text-center w-[6%]">
+                      <span className="inline-flex rounded-md bg-muted px-2 py-1 text-xs font-semibold text-muted-foreground">
+                        {listingCurrency}
+                      </span>
+                    </td>
 
                     {/* Sparkline */}
                     <td className="py-3 text-center w-[8%]">
                       {detail ? (
-                        <Sparkline
-                          data={detail.sparkline}
-                          positive={isPositive}
-                        />
+                        <div className="inline-flex flex-col items-center">
+                          <Sparkline
+                            data={detail.sparkline}
+                            positive={isPositive}
+                          />
+                          {detail.sparklinePreviousTradingDay && <span className="mt-0.5 whitespace-nowrap text-[8px] text-muted-foreground">PREVIOUS DAY</span>}
+                        </div>
                       ) : (
                         <span className="text-[10px] text-muted-foreground">N/A</span>
                       )}
@@ -406,17 +470,17 @@ export default function InvestmentsTable({
                       )}
                     </td>
 
-                    <td className="py-3 text-center w-[6%]">{inv.shares}</td>
-                    <td className="py-3 text-center w-[7%]">${inv.current.toLocaleString()}</td>
-                    <td className="py-3 text-center w-[7%]">${inv.avg.toLocaleString()}</td>
-                    <td className="py-3 text-center w-[7%]">${inv.book.toLocaleString()}</td>
+                    <td className="py-3 text-center w-[6%]">{isClosedPosition ? <span className="text-xs font-semibold text-muted-foreground">CLOSED</span> : Number(inv.shares).toLocaleString(undefined, { maximumFractionDigits: 4 })}</td>
+                    <td className="py-3 text-center w-[7%]">{isClosedPosition ? "-" : formatCurrency(inv.current, listingCurrency)}</td>
+                    <td className="py-3 text-center w-[7%]">{isClosedPosition ? "-" : formatCurrency(inv.avg, listingCurrency)}</td>
+                    <td className="py-3 text-center w-[7%]">{isClosedPosition ? "-" : formatCurrency(inv.book, listingCurrency)}</td>
 
                     <td className="py-3 text-center font-semibold w-[7%]">
-                      ${inv.market.toLocaleString()}
+                      {isClosedPosition ? "-" : formatCurrency(inv.market, listingCurrency)}
                     </td>
 
                     <td className="py-3 text-center w-[7%]">
-                      <span
+                      {isClosedPosition ? "-" : <span
                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-base font-semibold ${
                           inv.positive
                             ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
@@ -424,12 +488,12 @@ export default function InvestmentsTable({
                         }`}
                       >
                         {inv.positive ? "+" : ""}
-                        ${Math.abs(inv.gain).toLocaleString()}
-                      </span>
+                        {formatCurrency(Math.abs(inv.gain), listingCurrency)}
+                      </span>}
                     </td>
 
                     <td className="py-3 text-center w-[7%]">
-                      <span
+                      {isClosedPosition ? "-" : <span
                         className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-base font-semibold ${
                           inv.gainPct >= 0
                             ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400"
@@ -437,6 +501,12 @@ export default function InvestmentsTable({
                         }`}
                       >
                         {inv.gainPct.toFixed(2)}%
+                      </span>}
+                    </td>
+
+                    <td className="py-3 text-center w-[8%]">
+                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-base font-semibold ${inv.realizedGain >= 0 ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400" : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-400"}`}>
+                        {inv.realizedGain >= 0 ? "+" : ""}{formatCurrency(Math.abs(inv.realizedGain), listingCurrency)}
                       </span>
                     </td>
 
@@ -461,7 +531,8 @@ export default function InvestmentsTable({
                       <HoldingTransactions
                         investmentId={inv.id}
                         symbol={inv.symbol}
-                        columnCount={showPortfolio ? 14 : 13}
+                        currency={listingCurrency}
+                        columnCount={showPortfolio ? 16 : 15}
                         startNewTransaction={isEmptyHolding}
                         onSuccess={() => {
                           setHoldingIdsWithTransactions((current) => new Set(current).add(inv.id));

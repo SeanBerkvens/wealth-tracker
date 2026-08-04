@@ -1,0 +1,12 @@
+import { formatCurrency } from "@/lib/currency-format";
+
+export default function RealizedGainCard({ value, percent, currency = "CAD" }: { value: number; percent: number; currency?: string }) {
+  const positive = value >= 0;
+  return <div className="rounded-2xl border border-border bg-card p-6 shadow-sm card-hover flex flex-col items-center justify-center h-full">
+    <p className="text-sm text-muted-foreground font-medium uppercase tracking-wider mb-2">Realized Gain</p>
+    <div className="flex items-center justify-center gap-3">
+      <p className={`text-5xl font-bold tracking-tight ${positive ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400"}`}>{positive ? "+" : ""}{formatCurrency(Math.abs(value), currency)}</p>
+      <span className={`inline-flex items-center rounded-full px-3 py-1.5 text-sm font-semibold ${positive ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-400" : "bg-rose-50 text-rose-700 dark:bg-rose-950 dark:text-rose-400"}`}>{positive ? "+" : ""}{percent.toFixed(2)}%</span>
+    </div>
+  </div>;
+}

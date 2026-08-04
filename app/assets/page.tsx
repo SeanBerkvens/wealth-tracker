@@ -7,6 +7,7 @@ import UnassignedInvestmentsItem from "@/components/assets/unassigned-investment
 import SummaryCard from "@/components/assets/summary-card";
 import AddLiabilityForm from "@/components/liabilities/add-liability-form";
 import LiabilityItem from "@/components/liabilities/liability-item";
+import { getExchangeRates, normalizeCurrency } from "@/lib/currency";
 
 export default async function AssetsPage() {
   const supabase = await createClient();
@@ -28,10 +29,18 @@ export default async function AssetsPage() {
       .select("*")
       .eq("user_id", userId)
       .order("created_at", { ascending: false }),
-    supabase.from("investments").select("portfolio, value, is_ignored").eq("user_id", userId),
+    supabase.from("investments").select("portfolio, value, currency, is_ignored").eq("user_id", userId),
     supabase.from("portfolios").select("id, name, is_ignored, icon, icon_color").eq("user_id", userId).order("name", { ascending: true }),
     supabase.from("accounts").select("id, name, type, balance, is_ignored, icon, icon_color").eq("user_id", userId).order("created_at", { ascending: false }),
   ]);
+
+  const reportingCurrency = normalizeCurrency(user.user_metadata?.preferred_currency);
+  const exchangeRates = await getExchangeRates(
+    ["CAD", ...(investments ?? []).map((investment) => investment.currency ?? "CAD")],
+    reportingCurrency
+  );
+  const report = (amount: number, currency = "CAD") =>
+    amount * (exchangeRates.get(normalizeCurrency(currency)) ?? 1);
 
   const totalManualAssets =
     assets?.filter((asset) => !asset.is_ignored).reduce((total, asset) => total + Number(asset.value), 0) ?? 0;
@@ -44,13 +53,13 @@ export default async function AssetsPage() {
     value:
       investments
         ?.filter((investment) => investment.portfolio === portfolio.name && !investment.is_ignored)
-        .reduce((total, investment) => total + Number(investment.value), 0) ?? 0,
+        .reduce((total, investment) => total + report(Number(investment.value), investment.currency), 0) ?? 0,
   }));
   const unassignedInvestments = investments?.filter((investment) => !investment.portfolio) ?? [];
   const unassignedPortfolioValue =
     unassignedInvestments
       .filter((investment) => !investment.is_ignored)
-      .reduce((total, investment) => total + Number(investment.value), 0) ?? 0;
+      .reduce((total, investment) => total + report(Number(investment.value), investment.currency), 0) ?? 0;
   const hasUnassignedInvestments = unassignedInvestments.length > 0;
   const unassignedInvestmentsIgnored =
     hasUnassignedInvestments && unassignedInvestments.every((investment) => investment.is_ignored);

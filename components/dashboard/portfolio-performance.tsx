@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import TodayGainCard from "@/components/investments/today-gain-card";
 import UnrealizedGainCard from "@/components/investments/unrealized-gain-card";
 import NetDepositsCard from "@/components/investments/net-deposits-card";
+import { useAuth } from "@/components/auth/auth-provider";
+import { normalizeCurrency } from "@/lib/currency-format";
 
 type GainsData = {
   todayGainValue: number;
@@ -15,6 +17,8 @@ type GainsData = {
 };
 
 export default function PortfolioPerformance() {
+  const { user } = useAuth();
+  const currency = normalizeCurrency(user?.user_metadata?.preferred_currency);
   const [gains, setGains] = useState<GainsData | null>(null);
 
   useEffect(() => {
@@ -46,13 +50,16 @@ export default function PortfolioPerformance() {
         <TodayGainCard
           value={gains.todayGainValue}
           percent={gains.todayGainPercent}
+          currency={currency}
         />
         <UnrealizedGainCard
           value={gains.unrealizedGainValue}
           percent={gains.unrealizedGainPercent}
+          currency={currency}
         />
         <NetDepositsCard
           value={gains.netDeposits}
+          currency={currency}
         />
       </div>
     </div>

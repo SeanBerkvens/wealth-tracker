@@ -1,9 +1,12 @@
+import { formatCurrency } from "@/lib/currency-format";
+
 interface NetDepositsCardProps {
   value: number;
   percent?: number;
+  currency?: string;
 }
 
-export default function NetDepositsCard({ value, percent }: NetDepositsCardProps) {
+export default function NetDepositsCard({ value, percent, currency = "CAD" }: NetDepositsCardProps) {
   const positive = value >= 0;
 
   return (
@@ -12,10 +15,7 @@ export default function NetDepositsCard({ value, percent }: NetDepositsCardProps
         Net Deposits
       </p>
       <p className="text-5xl font-bold tracking-tight mt-2">
-        ${value.toLocaleString(undefined, {
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        })}
+        {formatCurrency(value, currency)}
       </p>
     </div>
   );

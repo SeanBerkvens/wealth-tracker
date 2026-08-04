@@ -19,6 +19,7 @@ interface Holding {
 
 interface TopHoldingsProps {
   holdings: Holding[];
+  currency?: string;
 }
 
 const COLORS = [
@@ -29,7 +30,7 @@ const COLORS = [
   "var(--chart-5)",
 ];
 
-export default function TopHoldings({ holdings }: TopHoldingsProps) {
+export default function TopHoldings({ holdings, currency = "CAD" }: TopHoldingsProps) {
   const top5 = [...holdings]
     .sort((a, b) => b.value - a.value)
     .slice(0, 5);
@@ -74,7 +75,7 @@ export default function TopHoldings({ holdings }: TopHoldingsProps) {
             <XAxis
               type="number"
               stroke="var(--muted-foreground)"
-              tickFormatter={(value) => `$${Math.round(value / 1000)}k`}
+              tickFormatter={(value) => `$${new Intl.NumberFormat(undefined, { notation: "compact", maximumFractionDigits: 0 }).format(value)}`}
             />
             <YAxis
               type="category"

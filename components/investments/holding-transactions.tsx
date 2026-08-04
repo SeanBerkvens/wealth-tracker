@@ -14,6 +14,7 @@ type HoldingTransaction = {
   price: number | string;
   commission: number | string | null;
   note: string | null;
+  currency?: string;
 };
 
 type TransactionDraft = {
@@ -32,19 +33,21 @@ const emptyDraft = (): TransactionDraft => ({
   type: "buy",
   shares: "",
   price: "",
-  commission: "0",
+  commission: "",
   note: "",
 });
 
 export default function HoldingTransactions({
   investmentId,
   symbol,
+  currency = "CAD",
   columnCount,
   startNewTransaction = false,
   onSuccess,
 }: {
   investmentId: string;
   symbol: string;
+  currency?: string;
   columnCount: number;
   startNewTransaction?: boolean;
   onSuccess?: () => void;
@@ -63,7 +66,7 @@ export default function HoldingTransactions({
 
     const { data, error: loadError } = await supabase
       .from("transactions")
-      .select("id, date, type, shares, price, commission, note")
+      .select("id, date, type, shares, price, commission, note, currency")
       .eq("investment_id", investmentId)
       .eq("user_id", user.id)
       .order("date", { ascending: true })
@@ -126,13 +129,12 @@ export default function HoldingTransactions({
       price,
       commission,
       note: draft.note.trim() || null,
-      investment_id: investmentId,
-      user_id: user.id,
+      investmentId,
     };
 
-    const { error: saveError } = editingId && editingId !== "new"
-      ? await supabase.from("transactions").update(values).eq("id", editingId).eq("user_id", user.id)
-      : await supabase.from("transactions").insert({ ...values, symbol });
+    const response = await fetch("/api/investments/transactions", { method: editingId && editingId !== "new" ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(editingId && editingId !== "new" ? { ...values, transactionId: editingId } : values) });
+    const result = await response.json();
+    const saveError = response.ok ? null : { message: result.error ?? "Could not save transaction." };
 
     if (saveError) {
       setError(saveError.message);
@@ -219,8 +221,8 @@ export default function HoldingTransactions({
                       <td className="p-2">{transaction.date}</td>
                       <td className="p-2 capitalize">{transaction.type}</td>
                       <td className="p-2 text-right">{Number(transaction.shares).toLocaleString()}</td>
-                      <td className="p-2 text-right">${Number(transaction.price).toLocaleString()}</td>
-                      <td className="p-2 text-right">${Number(transaction.commission ?? 0).toLocaleString()}</td>
+                      <td className="p-2 text-right">{new Intl.NumberFormat(undefined, { style: "currency", currency: transaction.currency ?? currency }).format(Number(transaction.price))}</td>
+                      <td className="p-2 text-right">{new Intl.NumberFormat(undefined, { style: "currency", currency: transaction.currency ?? currency }).format(Number(transaction.commission ?? 0))}</td>
                       <td className="p-2 text-muted-foreground">{transaction.note || "—"}</td>
                       <td className="p-2 text-right whitespace-nowrap"><button type="button" onClick={() => startEditing(transaction)} className="mr-3 text-primary">Edit</button><button type="button" onClick={() => void deleteTransaction(transaction.id)} className="text-red-500">Delete</button></td>
                     </tr>

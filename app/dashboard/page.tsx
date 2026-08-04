@@ -6,6 +6,7 @@ import { RecentTransactions } from "@/components/dashboard/recent-transactions";
 import PortfolioPerformance from "@/components/dashboard/portfolio-performance";
 import TopHoldings from "@/components/dashboard/top-holdings";
 import { createClient } from "@/lib/supabase/server";
+import { formatCurrency, getExchangeRates, normalizeCurrency } from "@/lib/currency";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -36,14 +37,21 @@ export default async function DashboardPage() {
     supabase.from("transactions").select("*").eq("user_id", userId).order("date", { ascending: false }).limit(5),
   ]);
 
+  const reportingCurrency = normalizeCurrency(user.user_metadata?.preferred_currency);
+  const exchangeRates = await getExchangeRates(
+    ["CAD", ...(investments ?? []).map((investment) => investment.currency ?? "CAD")],
+    reportingCurrency
+  );
+  const report = (amount: number, currency = "CAD") => amount * (exchangeRates.get(normalizeCurrency(currency)) ?? 1);
+
   const cashBalance =
     accounts?.reduce(
-      (total, account) => total + Number(account.balance),
+      (total, account) => total + report(Number(account.balance)),
       0
     ) ?? 0;
 
   const totalManualAssets =
-    assets?.filter((asset) => !asset.is_ignored).reduce((total, asset) => total + Number(asset.value), 0) ?? 0;
+    assets?.filter((asset) => !asset.is_ignored).reduce((total, asset) => total + report(Number(asset.value)), 0) ?? 0;
 
   const portfolioAssets = (portfolios ?? []).map((portfolio) => ({
     id: portfolio.id,
@@ -52,14 +60,14 @@ export default async function DashboardPage() {
     value:
       investments
         ?.filter((investment) => investment.portfolio === portfolio.name && !investment.is_ignored)
-        .reduce((total, investment) => total + Number(investment.value), 0) ?? 0,
+        .reduce((total, investment) => total + report(Number(investment.value), investment.currency), 0) ?? 0,
   }));
 
   const unassignedInvestments = investments?.filter((investment) => !investment.portfolio) ?? [];
   const unassignedPortfolioValue =
     unassignedInvestments
       .filter((investment) => !investment.is_ignored)
-      .reduce((total, investment) => total + Number(investment.value), 0) ?? 0;
+      .reduce((total, investment) => total + report(Number(investment.value), investment.currency), 0) ?? 0;
 
   const portfolioValue = portfolioAssets.reduce(
     (total, portfolio) => total + (portfolio.isIgnored ? 0 : portfolio.value),
@@ -71,11 +79,11 @@ export default async function DashboardPage() {
 
   const totalAccountAssets = accountAssets
     .filter((account) => !account.is_ignored)
-    .reduce((total, account) => total + Number(account.balance), 0);
+    .reduce((total, account) => total + report(Number(account.balance)), 0);
 
   const totalAccountLiabilities = accountLiabilities.reduce(
     (total, liability) =>
-      total + (liability.is_ignored ? 0 : Math.abs(Number(liability.balance))),
+      total + (liability.is_ignored ? 0 : Math.abs(report(Number(liability.balance)))),
     0
   );
 
@@ -84,13 +92,13 @@ export default async function DashboardPage() {
   const totalManualLiabilities =
     liabilities
       ?.filter((liability) => !liability.is_ignored)
-      .reduce((total, liability) => total + Number(liability.value), 0) ?? 0;
+      .reduce((total, liability) => total + report(Number(liability.value)), 0) ?? 0;
 
   const totalLiabilities = totalManualLiabilities + totalAccountLiabilities;
 
   const totalInvestments =
     investments?.reduce(
-      (total, investment) => total + Number(investment.value),
+      (total, investment) => total + report(Number(investment.value), investment.currency),
       0
     ) ?? 0;
 
@@ -115,14 +123,14 @@ export default async function DashboardPage() {
       .filter((a) => !a.is_ignored)
       .map((a) => ({
         name: `  ${a.name}`,
-        value: Number(a.value),
+        value: report(Number(a.value)),
       })),
     { name: "Cash", value: cashBalance },
     ...(accounts ?? [])
       .filter((a) => Number(a.balance) >= 0 && !a.is_ignored)
       .map((a) => ({
         name: `  ${a.name}`,
-        value: Number(a.balance),
+        value: report(Number(a.balance)),
       })),
   ].filter((item) => item.value > 0);
 
@@ -132,7 +140,7 @@ export default async function DashboardPage() {
     .map((inv) => ({
       symbol: inv.symbol,
       name: inv.name,
-      value: Number(inv.value),
+      value: report(Number(inv.value), inv.currency),
     }));
 
   return (
@@ -176,7 +184,7 @@ export default async function DashboardPage() {
   <div className="lg:col-span-2">
     <WealthCard
       title="Net Worth"
-      value={`$${netWorth.toLocaleString()}`}
+      value={formatCurrency(netWorth, reportingCurrency)}
       change="+$12,500 this month"
       icon="trend"
       featured
@@ -186,7 +194,7 @@ export default async function DashboardPage() {
   <Link href="/assets" className="block">
     <WealthCard
       title="Assets"
-      value={`$${totalAssets.toLocaleString()}`}
+      value={formatCurrency(totalAssets, reportingCurrency)}
       icon="home"
     />
   </Link>
@@ -194,7 +202,7 @@ export default async function DashboardPage() {
   <Link href="/assets" className="block">
     <WealthCard
       title="Liabilities"
-      value={`$${totalLiabilities.toLocaleString()}`}
+      value={formatCurrency(totalLiabilities, reportingCurrency)}
       icon="card"
     />
   </Link>
@@ -202,7 +210,7 @@ export default async function DashboardPage() {
   <Link href="/accounts" className="block">
     <WealthCard
       title="Cash"
-      value={`$${cashBalance.toLocaleString()}`}
+      value={formatCurrency(cashBalance, reportingCurrency)}
       icon="wallet"
     />
   </Link>
@@ -210,7 +218,7 @@ export default async function DashboardPage() {
   <Link href="/investments" className="block h-full">
     <WealthCard
       title="Investments"
-      value={`$${totalInvestments.toLocaleString()}`}
+      value={formatCurrency(totalInvestments, reportingCurrency)}
       change="+2.5%"
       icon="piggy"
     />
@@ -230,8 +238,9 @@ export default async function DashboardPage() {
           <AssetAllocation
             data={allocationData}
             details={allocationDetails}
+            currency={reportingCurrency}
           />
-          <TopHoldings holdings={topHoldings} />
+          <TopHoldings holdings={topHoldings} currency={reportingCurrency} />
         </div>
 
         {/* Recent Transactions */}

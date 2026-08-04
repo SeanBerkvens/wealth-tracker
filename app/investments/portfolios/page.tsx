@@ -12,7 +12,10 @@ import AssetAllocationChart from "@/components/investments/asset-allocation-char
 import InvestmentsTable from "@/components/investments/investments-table";
 import TodayGainCard from "@/components/investments/today-gain-card";
 import UnrealizedGainCard from "@/components/investments/unrealized-gain-card";
+import RealizedGainCard from "@/components/investments/realized-gain-card";
 import NetDepositsCard from "@/components/investments/net-deposits-card";
+import ImportInvestmentsCsv from "@/components/investments/import-investments-csv";
+import { normalizeCurrency } from "@/lib/currency-format";
 
 type Investment = {
   id: string;
@@ -24,6 +27,7 @@ type Investment = {
   value: number;
   purchase_date?: string;
   portfolio?: string;
+  currency?: string;
 };
 
 type GainsData = {
@@ -33,6 +37,8 @@ type GainsData = {
   unrealizedGainPercent: number;
   bookValue: number;
   netDeposits: number;
+  realizedGainValue: number;
+  realizedGainPercent: number;
 };
 
 export default function PortfoliosPage() {
@@ -46,6 +52,19 @@ export default function PortfoliosPage() {
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [portfolioToDelete, setPortfolioToDelete] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteAllConfirmOpen, setDeleteAllConfirmOpen] = useState(false);
+  const reportingCurrency = normalizeCurrency(user?.user_metadata?.preferred_currency);
+  const [exchangeRates, setExchangeRates] = useState<Map<string, number>>(new Map([["CAD", 1]]));
+
+  useEffect(() => {
+    const sources = [...new Set(investments.map((investment) => investment.currency ?? "CAD"))];
+    Promise.all(sources.map(async (from) => {
+      if (from === reportingCurrency) return [from, 1] as const;
+      const response = await fetch(`/api/exchange-rate?from=${from}&to=${reportingCurrency}`);
+      const data = await response.json();
+      return [from, Number(data.rate) || 1] as const;
+    })).then((entries) => setExchangeRates(new Map(entries))).catch(() => setExchangeRates(new Map()));
+  }, [investments, reportingCurrency]);
 
   const triggerRefresh = () => {
     setRefreshKey((prev) => prev + 1);
@@ -88,6 +107,22 @@ export default function PortfoliosPage() {
     setDeleteConfirmOpen(true);
   };
 
+  const deleteAllHoldings = async () => {
+    if (deleting) return;
+    setDeleting(true);
+    try {
+      const response = await fetch("/api/investments", { method: "DELETE" });
+      if (!response.ok) throw new Error("Could not delete holdings");
+      setDeleteAllConfirmOpen(false);
+      setSelectedPortfolio("all");
+      triggerRefresh();
+    } catch (error) {
+      console.error("Error deleting all holdings:", error);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   useEffect(() => {
     async function fetchInvestments() {
       if (!user) return;
@@ -123,6 +158,8 @@ export default function PortfoliosPage() {
     if (selectedPortfolio === "all") return investments;
     return investments.filter((inv) => inv.portfolio === selectedPortfolio);
   }, [investments, selectedPortfolio]);
+  const openHoldingCount = filteredInvestments.filter((investment) => Number(investment.shares) > 0.00000001).length;
+  const closedHoldingCount = filteredInvestments.length - openHoldingCount;
 
   const [portfolios, setPortfolios] = useState<string[]>([]);
 
@@ -142,9 +179,13 @@ export default function PortfoliosPage() {
   }, [refreshKey, user]);
 
   const totalValue = filteredInvestments.reduce(
-    (sum, inv) => sum + Number(inv.value),
+    (sum, inv) => sum + Number(inv.value) * (exchangeRates.get(inv.currency ?? "CAD") ?? 1),
     0
   );
+  const reportingInvestments = filteredInvestments.map((investment) => ({
+    ...investment,
+    value: Number(investment.value) * (exchangeRates.get(investment.currency ?? "CAD") ?? 1),
+  }));
 
   return (
     <div className="space-y-6">
@@ -164,24 +205,33 @@ export default function PortfoliosPage() {
 
       {/* Top Cards Row */}
       {gains && (
-        <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
           <PortfolioValueCard
             value={totalValue}
             todayGainValue={gains.todayGainValue}
             todayGainPercent={gains.todayGainPercent}
             holdings={filteredInvestments.length}
             bookValue={gains.bookValue}
+            currency={reportingCurrency}
           />
           <NetDepositsCard
             value={gains.netDeposits}
+            currency={reportingCurrency}
           />
           <UnrealizedGainCard
             value={gains.unrealizedGainValue}
             percent={gains.unrealizedGainPercent}
+            currency={reportingCurrency}
           />
           <TodayGainCard
             value={gains.todayGainValue}
             percent={gains.todayGainPercent}
+            currency={reportingCurrency}
+          />
+          <RealizedGainCard
+            value={gains.realizedGainValue}
+            percent={gains.realizedGainPercent}
+            currency={reportingCurrency}
           />
         </div>
       )}
@@ -189,10 +239,10 @@ export default function PortfoliosPage() {
       {/* Charts Row */}
       <div className="grid gap-5 lg:grid-cols-5 items-stretch">
         <div className="lg:col-span-3 flex flex-col">
-          <PortfolioHistoryChart portfolio={selectedPortfolio !== "all" ? selectedPortfolio : undefined} />
+          <PortfolioHistoryChart portfolio={selectedPortfolio !== "all" ? selectedPortfolio : undefined} refreshKey={refreshKey} />
         </div>
         <div className="lg:col-span-2 flex flex-col">
-          <AssetAllocationChart investments={filteredInvestments} />
+          <AssetAllocationChart investments={reportingInvestments} currency={reportingCurrency} />
         </div>
       </div>
 
@@ -237,7 +287,7 @@ export default function PortfoliosPage() {
                 ))}
               </div>
               <span className="text-sm text-muted-foreground whitespace-nowrap">
-                {filteredInvestments.length} holding{filteredInvestments.length !== 1 ? "s" : ""}
+                {openHoldingCount} open holding{openHoldingCount !== 1 ? "s" : ""} · {closedHoldingCount} closed holding{closedHoldingCount !== 1 ? "s" : ""}
               </span>
             </div>
 
@@ -251,7 +301,9 @@ export default function PortfoliosPage() {
               />
 
               <AddPortfolioForm onSuccess={triggerRefresh} />
+              <ImportInvestmentsCsv portfolios={portfolios} onSuccess={triggerRefresh} />
               <AddInvestmentForm onSuccess={triggerRefresh} portfolios={portfolios} />
+              {investments.length > 0 && <button type="button" onClick={() => setDeleteAllConfirmOpen(true)} className="rounded-full border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-medium text-red-500 transition hover:bg-red-500/20 btn-press">Delete all holdings</button>}
             </div>
           </div>
         </div>
@@ -295,6 +347,19 @@ export default function PortfoliosPage() {
               >
                 {deleting ? "Deleting..." : "Yes"}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {deleteAllConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 modal-overlay">
+          <div className="modal-content w-full max-w-md rounded-xl border border-border bg-card p-6 text-card-foreground">
+            <h2 className="text-lg font-semibold">Delete all holdings?</h2>
+            <p className="mt-3 text-sm text-muted-foreground">This permanently deletes all {investments.length} holdings and their linked transactions across every portfolio. This cannot be undone.</p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button type="button" onClick={() => setDeleteAllConfirmOpen(false)} disabled={deleting} className="rounded-lg bg-muted px-4 py-2 text-sm btn-press">Cancel</button>
+              <button type="button" onClick={() => void deleteAllHoldings()} disabled={deleting} className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 btn-press disabled:opacity-50">{deleting ? "Deleting..." : "Delete all"}</button>
             </div>
           </div>
         </div>

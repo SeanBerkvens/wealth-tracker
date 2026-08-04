@@ -11,6 +11,7 @@ interface Transaction {
   type: "buy" | "sell";
   date: string;
   portfolio?: string | null;
+  currency?: string;
 }
 
 interface RecentTransactionsProps {
@@ -66,7 +67,7 @@ export function RecentTransactions({ transactions = [] }: RecentTransactionsProp
                   {tx.symbol}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  {tx.shares} shares @ ${Number(tx.price).toFixed(2)}
+                  {tx.shares} shares @ {new Intl.NumberFormat(undefined, { style: "currency", currency: tx.currency ?? "CAD" }).format(Number(tx.price))}
                   {tx.portfolio ? ` · ${tx.portfolio}` : ""}
                 </p>
               </div>

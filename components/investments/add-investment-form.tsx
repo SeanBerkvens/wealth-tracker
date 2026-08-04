@@ -1,7 +1,6 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/components/auth/auth-provider";
 
 type Stock = {
@@ -17,7 +16,6 @@ export default function AddInvestmentForm({
   portfolios?: string[];
 }) {
   const { user } = useAuth();
-  const supabase = createClient();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<Stock[]>([]);
@@ -75,52 +73,10 @@ export default function AddInvestmentForm({
     setSaving(true);
     setStatusMessage(null);
 
-    let existingHoldingQuery = supabase
-      .from("investments")
-      .select("id")
-      .eq("symbol", selected.symbol)
-      .eq("user_id", user.id);
-
-    existingHoldingQuery = portfolio
-      ? existingHoldingQuery.eq("portfolio", portfolio)
-      : existingHoldingQuery.is("portfolio", null);
-
-    const { data: existingHolding, error: lookupError } = await existingHoldingQuery.maybeSingle();
-    if (lookupError) {
-      setStatusMessage(`Failed to find the holding: ${lookupError.message}`);
-      setSaving(false);
-      return;
-    }
-
-    if (existingHolding) {
-      setStatusMessage("This holding already exists in the selected portfolio.");
-      setSaving(false);
-      return;
-    }
-
-    let currentPrice = 0;
-    try {
-      const response = await fetch(`/api/stocks/price?symbol=${encodeURIComponent(selected.symbol)}`);
-      const data = await response.json();
-      if (Number(data?.price) > 0) currentPrice = Number(data.price);
-    } catch {
-      // A holding can still be created when a quote is temporarily unavailable.
-    }
-
-    const { error } = await supabase.from("investments").insert({
-      name: selected.name,
-      symbol: selected.symbol,
-      shares: 0,
-      purchase_price: 0,
-      current_price: currentPrice,
-      value: 0,
-      purchase_date: new Date().toISOString().slice(0, 10),
-      portfolio: portfolio || null,
-      user_id: user.id,
-    });
-
-    if (error) {
-      setStatusMessage(`Failed to create holding: ${error.message}`);
+    const response = await fetch("/api/investments/holdings", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: selected.name, symbol: selected.symbol, portfolio: portfolio || null }) });
+    const result = await response.json();
+    if (!response.ok) {
+      setStatusMessage(`Failed to create holding: ${result.error ?? "Unknown error"}`);
       setSaving(false);
       return;
     }
