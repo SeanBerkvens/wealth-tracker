@@ -8,6 +8,8 @@ import SummaryCard from "@/components/assets/summary-card";
 import AddLiabilityForm from "@/components/liabilities/add-liability-form";
 import LiabilityItem from "@/components/liabilities/liability-item";
 import { getExchangeRates, normalizeCurrency } from "@/lib/currency";
+import { EmptyState } from "@/components/ui/empty-state";
+import { House, ReceiptText } from "lucide-react";
 
 export default async function AssetsPage() {
   const supabase = await createClient();
@@ -84,6 +86,7 @@ export default async function AssetsPage() {
       .reduce((total, liability) => total + Number(liability.value), 0) ?? 0;
   const totalLiabilities = totalManualLiabilities + totalAccountLiabilities;
   const netAssetValue = totalAssets - totalLiabilities;
+  const hasAnyRecords = Boolean((assets?.length ?? 0) + (liabilities?.length ?? 0) + (investments?.length ?? 0) + (accounts?.length ?? 0));
 
   return (
     <div className="space-y-6">
@@ -100,7 +103,7 @@ export default async function AssetsPage() {
         </div>
       </div>
 
-      <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
+      {hasAnyRecords && <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
         <SummaryCard label="Total Assets" value={totalAssets} />
         <SummaryCard label="Total Liabilities" value={totalLiabilities} />
         <SummaryCard
@@ -112,7 +115,7 @@ export default async function AssetsPage() {
               : "text-rose-600 dark:text-rose-400"
           }
         />
-      </div>
+      </div>}
 
       <div className="grid gap-5 lg:grid-cols-2">
         <section className="rounded-2xl border border-border bg-card shadow-sm">
@@ -156,7 +159,7 @@ export default async function AssetsPage() {
               />
             ))}
             {assets?.map((asset) => <AssetItem key={asset.id} asset={asset} />)}
-            {!assets?.length && !investmentAssetCount && !accountAssets.length && <EmptyState message="No assets added yet." />}
+            {!assets?.length && !investmentAssetCount && !accountAssets.length && <EmptyState variant="compact" icon={House} title="Track what you own" description="Add homes, vehicles, valuables, and other wealth outside your investments." primaryAction={<AddAssetForm compact />} />}
           </div>
         </section>
 
@@ -184,14 +187,10 @@ export default async function AssetsPage() {
               />
             ))}
             {liabilities?.map((liability) => <LiabilityItem key={liability.id} liability={liability} />)}
-            {!liabilities?.length && !accountLiabilities.length && <EmptyState message="No liabilities added yet." />}
+            {!liabilities?.length && !accountLiabilities.length && <EmptyState variant="compact" icon={ReceiptText} title="Track what you owe" description="Add mortgages, loans, and other obligations for an accurate net worth." primaryAction={<AddLiabilityForm compact />} />}
           </div>
         </section>
       </div>
     </div>
   );
-}
-
-function EmptyState({ message }: { message: string }) {
-  return <p className="rounded-xl border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">{message}</p>;
 }

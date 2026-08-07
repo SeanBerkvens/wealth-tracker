@@ -16,6 +16,8 @@ import RealizedGainCard from "@/components/investments/realized-gain-card";
 import NetDepositsCard from "@/components/investments/net-deposits-card";
 import ImportInvestmentsCsv from "@/components/investments/import-investments-csv";
 import { normalizeCurrency } from "@/lib/currency-format";
+import { EmptyState } from "@/components/ui/empty-state";
+import { BriefcaseBusiness } from "lucide-react";
 
 type Investment = {
   id: string;
@@ -186,6 +188,8 @@ export default function PortfoliosPage() {
     ...investment,
     value: Number(investment.value) * (exchangeRates.get(investment.currency ?? "CAD") ?? 1),
   }));
+  const hasInvestments = investments.length > 0;
+  const showEmptyHoldings = filteredInvestments.length === 0 && !searchQuery.trim();
 
   return (
     <div className="space-y-6">
@@ -203,6 +207,15 @@ export default function PortfoliosPage() {
         <PriceRefresh onRefresh={triggerRefresh} />
       </div>
 
+      {!hasInvestments ? (
+        <EmptyState
+          icon={BriefcaseBusiness}
+          title="Build your first portfolio"
+          description="Separate portfolios help you understand accounts such as a TFSA, RRSP, non-registered account, or employer plan. Create a portfolio, add a holding, or import a broker CSV when you are ready."
+          primaryAction={<AddPortfolioForm onSuccess={triggerRefresh} />}
+          secondaryAction={<div className="flex flex-wrap justify-center gap-2"><AddInvestmentForm onSuccess={triggerRefresh} portfolios={portfolios} /><ImportInvestmentsCsv portfolios={portfolios} onSuccess={triggerRefresh} /></div>}
+        />
+      ) : <>
       {/* Top Cards Row */}
       {gains && (
         <div className="grid gap-5 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
@@ -309,15 +322,12 @@ export default function PortfoliosPage() {
         </div>
 
         <div className="px-5 pb-5">
-          <InvestmentsTable
-            investments={filteredInvestments}
-            searchQuery={searchQuery}
-            onRefresh={triggerRefresh}
-            showPortfolio={selectedPortfolio === "all"}
-            portfolios={portfolios}
-          />
+          {showEmptyHoldings ? (
+            <EmptyState variant="compact" icon={BriefcaseBusiness} title={selectedPortfolio === "all" ? "No holdings yet" : `No holdings in ${selectedPortfolio}`} description="Add a holding or import a CSV to start tracking this portfolio." primaryAction={<AddInvestmentForm onSuccess={triggerRefresh} portfolios={portfolios} />} />
+          ) : <InvestmentsTable investments={filteredInvestments} searchQuery={searchQuery} onRefresh={triggerRefresh} showPortfolio={selectedPortfolio === "all"} portfolios={portfolios} />}
         </div>
       </div>
+      </>}
 
       {/* Delete Portfolio Confirmation Modal */}
       {deleteConfirmOpen && (

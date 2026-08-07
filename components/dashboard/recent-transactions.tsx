@@ -1,6 +1,8 @@
 "use client";
 
 import Link from "next/link";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ArrowRightLeft } from "lucide-react";
 
 interface Transaction {
   id: string;
@@ -45,9 +47,7 @@ export function RecentTransactions({ transactions = [] }: RecentTransactionsProp
       </div>
 
       {!hasData ? (
-        <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
-          No transactions yet
-        </div>
+        <EmptyState variant="compact" icon={ArrowRightLeft} title="No recent activity" description="Transactions appear after you add trades to an investment holding." />
       ) : (
         <div className="space-y-3">
           {transactions.map((tx) => (

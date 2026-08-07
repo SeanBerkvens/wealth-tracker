@@ -1,3 +1,6 @@
+import { EmptyState } from "@/components/ui/empty-state";
+import { Newspaper } from "lucide-react";
+
 export default function NewsPage() {
   return (
     <div className="space-y-6">
@@ -8,11 +11,7 @@ export default function NewsPage() {
         </p>
       </div>
 
-      <div className="rounded-2xl bg-card border border-border shadow-sm p-12 flex items-center justify-center">
-        <p className="text-muted-foreground text-lg">
-          Coming soon...
-        </p>
-      </div>
+      <EmptyState icon={Newspaper} title="News tailored to your investments is on its way" description="Once market news is connected, this space will help you stay current on the companies and securities you follow." />
     </div>
   );
 }

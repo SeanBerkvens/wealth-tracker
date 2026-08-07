@@ -2,6 +2,8 @@ import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import AddAccountForm from "@/components/accounts/add-account-form";
 import AccountActions from "@/components/accounts/account-actions";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Landmark } from "lucide-react";
 
 export default async function AccountsPage() {
   const supabase = await createClient();
@@ -27,6 +29,7 @@ export default async function AccountsPage() {
         total + Number(account.balance),
       0
     ) ?? 0;
+  const hasAccounts = (accounts?.length ?? 0) > 0;
 
 
   return (
@@ -49,12 +52,20 @@ export default async function AccountsPage() {
   </div>
 
 
-  <AddAccountForm />
+  {hasAccounts && <AddAccountForm />}
 
 </div>
 
 
 
+      {!hasAccounts ? (
+        <EmptyState
+          icon={Landmark}
+          title="Add your first account"
+          description="Accounts keep cash, savings, chequing, credit, and other day-to-day balances in your financial picture."
+          primaryAction={<AddAccountForm />}
+        />
+      ) : <>
       {/* Summary */}
       <div
         className="
@@ -168,6 +179,8 @@ export default async function AccountsPage() {
 
 
 </div>
+
+      </>}
 
 
     </div>

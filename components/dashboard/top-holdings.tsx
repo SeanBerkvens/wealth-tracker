@@ -10,6 +10,8 @@ import {
   ResponsiveContainer,
   Cell,
 } from "recharts";
+import { EmptyState } from "@/components/ui/empty-state";
+import { TrendingUp } from "lucide-react";
 
 interface Holding {
   symbol: string;
@@ -46,9 +48,7 @@ export default function TopHoldings({ holdings, currency = "CAD" }: TopHoldingsP
             Your largest investment positions
           </p>
         </div>
-        <div className="h-[200px] flex items-center justify-center text-muted-foreground text-sm">
-          No investments yet
-        </div>
+        <EmptyState variant="compact" icon={TrendingUp} title="No holdings yet" description="Add an investment to compare your largest positions." className="h-[200px]" />
       </div>
     );
   }

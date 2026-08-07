@@ -7,24 +7,28 @@ import { Loader2 } from "lucide-react";
 export function SignInButton({
   provider = "google",
   label = "Sign in with Google",
+  next,
 }: {
   provider?: "google" | "github" | "discord";
   label?: string;
+  next?: string;
 }) {
   const [loading, setLoading] = useState(false);
   const supabase = createClient();
 
+  const [error, setError] = useState<string | null>(null);
   const handleSignIn = async () => {
     setLoading(true);
+    setError(null);
 
-    // Use window.location.origin for local dev, NEXT_PUBLIC_SITE_URL for Vercel
-    const siteUrl =
-      window.location.origin || process.env.NEXT_PUBLIC_SITE_URL;
+    // OAuth must return to the origin currently serving the app. This keeps
+    // local sign-ins on localhost while deployed sign-ins return to Vercel.
+    const siteUrl = window.location.origin;
 
     const { error } = await supabase.auth.signInWithOAuth({
       provider,
       options: {
-        redirectTo: `${siteUrl}/auth/callback`,
+        redirectTo: `${siteUrl}/auth/callback${next?.startsWith("/") && !next.startsWith("//") ? `?next=${encodeURIComponent(next)}` : ""}`,
         // Force Google to show account picker every time
         queryParams: {
           prompt: "select_account",
@@ -33,12 +37,13 @@ export function SignInButton({
     });
 
     if (error) {
-      console.error("Sign in error:", error.message);
+      setError(error.message);
       setLoading(false);
     }
   };
 
   return (
+    <>
     <button
       onClick={handleSignIn}
       disabled={loading}
@@ -68,5 +73,7 @@ export function SignInButton({
       )}
       {label}
     </button>
+    {error && <p role="alert" className="text-sm text-destructive">{error}</p>}
+    </>
   );
 }

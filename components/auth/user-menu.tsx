@@ -2,9 +2,12 @@
 
 import { useAuth } from "./auth-provider";
 import { LogOut, User } from "lucide-react";
+import { useState } from "react";
+import { ConfirmSignOut } from "./confirm-sign-out";
 
 export function UserMenu() {
-  const { user, signOut } = useAuth();
+  const { user } = useAuth();
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   if (!user) return null;
 
@@ -36,12 +39,13 @@ export function UserMenu() {
         </div>
       </div>
       <button
-        onClick={signOut}
+        onClick={() => setConfirmOpen(true)}
         className="sidebar-link btn-press flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-sidebar-foreground transition-all duration-200 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
       >
         <LogOut className="h-4 w-4" />
         Sign out
       </button>
+      <ConfirmSignOut open={confirmOpen} onClose={() => setConfirmOpen(false)} />
     </div>
   );
 }

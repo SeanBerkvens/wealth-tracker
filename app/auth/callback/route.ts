@@ -4,10 +4,18 @@ import { createClient } from "@/lib/supabase/server";
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const code = searchParams.get("code");
-  const next = searchParams.get("next") ?? "/dashboard";
+  const requestedNext = searchParams.get("next");
+  const next = requestedNext?.startsWith("/") && !requestedNext.startsWith("//")
+    ? requestedNext
+    : "/dashboard";
 
-  // Use NEXT_PUBLIC_SITE_URL for Vercel, fall back to request origin for localhost
-  const origin = process.env.NEXT_PUBLIC_SITE_URL || new URL(request.url).origin;
+  const requestOrigin = new URL(request.url).origin;
+  // Local development must complete the OAuth exchange on localhost. Vercel
+  // uses the configured canonical production URL, with the request origin as
+  // a safe fallback for preview deployments.
+  const origin = process.env.VERCEL
+    ? process.env.NEXT_PUBLIC_SITE_URL || requestOrigin
+    : requestOrigin;
 
   if (code) {
     const supabase = await createClient();
@@ -19,5 +27,5 @@ export async function GET(request: Request) {
   }
 
   // Return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}?error=auth_callback_error`);
+  return NextResponse.redirect(`${origin}/auth/sign-in?error=auth_callback_error`);
 }

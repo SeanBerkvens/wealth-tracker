@@ -7,6 +7,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PieChart as PieChartIcon } from "lucide-react";
 
 interface Investment {
   symbol: string;
@@ -70,9 +72,7 @@ export default function AssetAllocationChart({
       </div>
 
       {data.length === 0 || total <= 0 ? (
-        <div className="flex flex-1 items-center justify-center text-muted-foreground text-sm">
-          No holdings to display
-        </div>
+        <EmptyState variant="compact" icon={PieChartIcon} title="Allocation needs holdings" description="Your allocation will update as soon as you add an investment." className="flex-1" />
       ) : (
         <>
           {/* Donut + Horizontal Stacked Bar — 1:2 ratio */}

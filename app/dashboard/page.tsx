@@ -7,6 +7,12 @@ import PortfolioPerformance from "@/components/dashboard/portfolio-performance";
 import TopHoldings from "@/components/dashboard/top-holdings";
 import { createClient } from "@/lib/supabase/server";
 import { formatCurrency, getExchangeRates, normalizeCurrency } from "@/lib/currency";
+import { EmptyState } from "@/components/ui/empty-state";
+import AddAccountForm from "@/components/accounts/add-account-form";
+import AddAssetForm from "@/components/assets/add-asset-form";
+import AddLiabilityForm from "@/components/liabilities/add-liability-form";
+import AddPortfolioForm from "@/components/investments/add-portfolio-form";
+import { LayoutDashboard } from "lucide-react";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -142,6 +148,25 @@ export default async function DashboardPage() {
       name: inv.name,
       value: report(Number(inv.value), inv.currency),
     }));
+  const hasFinancialRecords = Boolean((accounts?.length ?? 0) + (assets?.length ?? 0) + (liabilities?.length ?? 0) + (investments?.length ?? 0) + (portfolios?.length ?? 0));
+
+  if (!hasFinancialRecords) {
+    return (
+      <div className="space-y-10">
+        <div>
+          <h1 className="text-4xl font-semibold tracking-tight">Welcome to <span className="text-primary">AccuWealth</span></h1>
+          <p className="mt-2 text-lg text-muted-foreground">Build a complete, private picture of your finances.</p>
+        </div>
+        <EmptyState
+          icon={LayoutDashboard}
+          title="Start your financial picture"
+          description="Add a cash or bank account first, then round out your net worth with assets, liabilities, and investment portfolios."
+          primaryAction={<AddAccountForm />}
+          secondaryAction={<div className="flex flex-wrap justify-center gap-2"><AddAssetForm compact /><AddLiabilityForm compact /><AddPortfolioForm /></div>}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-10">
@@ -164,7 +189,7 @@ export default async function DashboardPage() {
 
 
       <p className="mt-2 text-muted-foreground text-lg">
-        Here's your financial overview
+        Here&apos;s your financial overview
       </p>
 
 
@@ -231,7 +256,7 @@ export default async function DashboardPage() {
       <div className="grid gap-6">
 
         {/* Portfolio Performance */}
-        <PortfolioPerformance />
+        <PortfolioPerformance hasInvestments={(investments?.length ?? 0) > 0} />
 
         {/* Charts Row */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -1,8 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import InvestmentsTable from "@/components/investments/investments-table";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Search } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 type Investment = {
   id: string;
@@ -19,8 +23,7 @@ type Investment = {
 export default function WatchlistPage() {
   const [investments, setInvestments] = useState<Investment[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const supabase = createClient();
-  const [refreshKey, setRefreshKey] = useState(0);
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     async function fetchInvestments() {
@@ -33,7 +36,7 @@ export default function WatchlistPage() {
     }
 
     fetchInvestments();
-  }, [refreshKey]);
+  }, [supabase]);
 
   return (
     <div className="space-y-6">
@@ -47,6 +50,14 @@ export default function WatchlistPage() {
         </div>
       </div>
 
+      {investments.length === 0 ? (
+        <EmptyState
+          icon={Search}
+          title="Keep an eye on the market"
+          description="Your watchlist is for securities you are researching, separate from the investments included in your net worth. Search for a stock to begin exploring."
+          primaryAction={<Button asChild><Link href="/investments/portfolios">Search stocks</Link></Button>}
+        />
+      ) : <>
       {/* Holdings Table */}
       <div className="rounded-2xl bg-card border border-border shadow-sm">
         <div className="p-5">
@@ -77,6 +88,7 @@ export default function WatchlistPage() {
           />
         </div>
       </div>
+      </>}
     </div>
   );
 }

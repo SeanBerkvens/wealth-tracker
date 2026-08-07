@@ -34,6 +34,9 @@ export function CurrencySelect() {
     const { error } = await createClient().auth.updateUser({
       data: { ...user.user_metadata, preferred_currency: next },
     });
+    if (!error) {
+      await createClient().from("profiles").upsert({ id: user.id, preferred_currency: next });
+    }
     setSaving(false);
     if (!error) router.refresh();
   }

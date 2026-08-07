@@ -10,6 +10,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ChartNoAxesCombined } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
 import { formatCurrency, normalizeCurrency } from "@/lib/currency-format";
 
@@ -152,10 +154,8 @@ export default function PortfolioHistoryChart({
           <div className="h-full flex items-center justify-center text-muted-foreground">
             Loading...
           </div>
-        ) : data.length === 0 ? (
-          <div className="h-full flex items-center justify-center text-muted-foreground">
-            No data available for this period
-          </div>
+        ) : data.length < 2 ? (
+          <EmptyState variant="compact" icon={ChartNoAxesCombined} title="More history is needed" description="Portfolio performance appears after transactions create at least two data points." className="h-full" />
         ) : (
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart data={data}>

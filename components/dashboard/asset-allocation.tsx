@@ -7,6 +7,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PieChart as PieChartIcon } from "lucide-react";
 
 interface AllocationItem {
   name: string;
@@ -64,9 +66,7 @@ export function AssetAllocation({ data = [], details, currency = "CAD" }: AssetA
       </div>
 
       {!hasData ? (
-        <div className="h-[250px] flex items-center justify-center text-muted-foreground text-sm">
-          No holdings to display
-        </div>
+        <EmptyState variant="compact" icon={PieChartIcon} title="Your breakdown will appear here" description="Add an account, asset, or investment to see how your wealth is distributed." className="h-[250px]" />
       ) : (
         <>
           {/* Chart */}

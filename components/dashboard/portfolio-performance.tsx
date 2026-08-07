@@ -6,6 +6,8 @@ import UnrealizedGainCard from "@/components/investments/unrealized-gain-card";
 import NetDepositsCard from "@/components/investments/net-deposits-card";
 import { useAuth } from "@/components/auth/auth-provider";
 import { normalizeCurrency } from "@/lib/currency-format";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ChartNoAxesCombined } from "lucide-react";
 
 type GainsData = {
   todayGainValue: number;
@@ -16,7 +18,7 @@ type GainsData = {
   netDeposits: number;
 };
 
-export default function PortfolioPerformance() {
+export default function PortfolioPerformance({ hasInvestments = true }: { hasInvestments?: boolean }) {
   const { user } = useAuth();
   const currency = normalizeCurrency(user?.user_metadata?.preferred_currency);
   const [gains, setGains] = useState<GainsData | null>(null);
@@ -33,6 +35,15 @@ export default function PortfolioPerformance() {
     }
     fetchGains();
   }, []);
+
+  if (!hasInvestments) {
+    return (
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm card-hover">
+        <div className="mb-6"><h2 className="text-xl font-semibold text-card-foreground">Portfolio Performance</h2><p className="mt-1 text-sm text-muted-foreground">Your investment gains at a glance</p></div>
+        <EmptyState variant="compact" icon={ChartNoAxesCombined} title="Performance starts with a holding" description="Add investments and their transactions to follow gains over time." />
+      </div>
+    );
+  }
 
   if (!gains) return null;
 

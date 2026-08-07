@@ -1,5 +1,9 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
+## Supabase production setup
+
+Set `SUPABASE_SERVICE_ROLE_KEY` only in the server/deployment environment. It is used solely by the server-only account deletion handler after it removes owned financial data and the profile. Never prefix it with `NEXT_PUBLIC_` or expose it to the browser. Configure Supabase Auth redirect URLs for `/auth/callback` and `/auth/reset-password` on every origin you use, including `http://localhost:3000` for local development and your Vercel production URL. Set `NEXT_PUBLIC_SITE_URL` to that canonical Vercel URL in Vercel; the local `.env.local` should remain `http://localhost:3000`. Enable Google plus email confirmation in Supabase Auth.
+
 ## Getting Started
 
 First, run the development server:

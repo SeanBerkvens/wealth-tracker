@@ -6,11 +6,14 @@ import { getStockQuote } from "@/lib/yahoo";
 export async function POST() {
 
   const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const { data: investments } =
     await supabase
       .from("investments")
-      .select("*");
+      .select("*")
+      .eq("user_id", user.id);
 
 
 
@@ -29,6 +32,7 @@ export async function POST() {
       .from("transactions")
       .select("type, shares, price, commission")
       .eq("investment_id", investment.id)
+      .eq("user_id", user.id)
       .order("date", { ascending: true })
       .order("created_at", { ascending: true });
 
@@ -67,7 +71,8 @@ export async function POST() {
           // Yahoo reports the currency used by the exchange where the symbol trades.
           currency: quote.currency,
         })
-        .eq("id", investment.id);
+        .eq("id", investment.id)
+        .eq("user_id", user.id);
     } catch (error) {
       console.error(`Failed to refresh ${investment.symbol}:`, error);
     }

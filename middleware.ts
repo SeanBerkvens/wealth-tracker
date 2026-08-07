@@ -10,8 +10,20 @@ const protectedRoutes = [
   "/reports",
   "/settings",
 ];
+const authRoutes = ["/", "/auth/sign-in", "/auth/sign-up", "/auth/forgot-password", "/auth/reset-password"];
 
 export async function middleware(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  // If Supabase falls back to the configured Site URL, it can return the
+  // OAuth code at the root path. Send that code through the normal callback
+  // route so the session exchange still completes after deployment.
+  if (pathname === "/" && request.nextUrl.searchParams.has("code")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/auth/callback";
+    return NextResponse.redirect(url);
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -39,10 +51,8 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const pathname = request.nextUrl.pathname;
-
-  // Redirect authenticated users away from the landing page
-  if (pathname === "/" && user) {
+  // Authentication screens are not useful once a session exists.
+  if (authRoutes.includes(pathname) && user) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
@@ -55,7 +65,12 @@ export async function middleware(request: NextRequest) {
 
   if (isProtectedRoute && !user) {
     const url = request.nextUrl.clone();
-    url.pathname = "/";
+    url.pathname = "/auth/sign-in";
+    const returnTo = `${pathname}${request.nextUrl.search}`;
+    // Only a local pathname is retained; this prevents open redirects.
+    if (returnTo.startsWith("/") && !returnTo.startsWith("//")) {
+      url.searchParams.set("next", returnTo);
+    }
     return NextResponse.redirect(url);
   }
 
